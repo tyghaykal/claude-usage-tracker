@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '../api';
+import { useConfirmDialog } from '../composables/useConfirmDialog';
 import { formatDateTime, formatRate } from '../format';
 import { useAuthStore } from '../stores/auth';
 import type { AiProviderView, AiSearchResponse, ModelPricingView, ModelsListResponse } from '../types';
 
 const auth = useAuthStore();
+const { confirm } = useConfirmDialog();
 
 const models = ref<ModelPricingView[]>([]);
 const catalog = ref<string[]>([]);
@@ -121,7 +123,7 @@ async function save() {
 }
 
 async function remove(model: ModelPricingView) {
-  if (!confirm(`Delete pricing for ${model.modelId}?`)) return;
+  if (!(await confirm(`Delete pricing for ${model.modelId}?`, { danger: true }))) return;
   await api(`/models/${model.id}`, { method: 'DELETE' });
   await load();
 }

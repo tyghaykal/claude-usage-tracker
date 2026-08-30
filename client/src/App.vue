@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import ConfirmDialog from './components/ConfirmDialog.vue';
+import ToastStack from './components/ToastStack.vue';
 import { useTheme } from './composables/useTheme';
 import { useAuthStore } from './stores/auth';
 
@@ -84,9 +86,12 @@ async function signOut() {
     </main>
 
     <footer class="mx-auto flex max-w-7xl justify-center gap-4 px-4 pb-6 text-xs text-slate-400 dark:text-slate-500">
-      <span>v0.1.0</span>
+      <span>v0.1.2</span>
       <RouterLink :to="{ name: 'changelog' }" class="hover:text-slate-600 dark:hover:text-slate-300">Changelog</RouterLink>
       <RouterLink :to="{ name: 'privacy' }" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy &amp; data</RouterLink>
     </footer>
   </div>
+
+  <ConfirmDialog />
+  <ToastStack />
 </template>

@@ -8,7 +8,29 @@
     </div>
 
     <section class="card space-y-3">
-      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.0 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.2 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Confirmation prompts (delete, revoke) use an in-app dialog instead of the browser's native popup.</li>
+        <li>Actions like copying a token now show a toast notification in the top-right corner.</li>
+        <li>Fixed: the "copy this token" card kept showing a token's value and setup commands after that token was revoked or deleted.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.1</h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Light and dark themes, with a one-click toggle; light is the default.</li>
+        <li>API tokens are now <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">sk-…</code>-prefixed, matching common AI-provider key formats.</li>
+        <li>The API tokens page shows setup commands for both a machine-wide (global) and a per-project reporter configuration (requires claude-usage-reporter v0.2.0+).</li>
+        <li>The dashboard's "Top projects" chart now shows a project's configured label instead of its raw repo/directory name, when one is set.</li>
+        <li>The log detail popup has a raw-payload viewer (🐛) showing the exact JSON this app received at ingestion.</li>
+        <li>Docker now publishes ports on <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">127.0.0.1</code> by default instead of all network interfaces; override with <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">BIND_HOST</code>.</li>
+        <li>Favicon added.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.0</h2>
       <p class="text-sm text-slate-600 dark:text-slate-400">Initial release.</p>
       <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
         <li>Usage ingestion from the <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">claude-usage-reporter</code> plugin via per-user, revocable API tokens.</li>

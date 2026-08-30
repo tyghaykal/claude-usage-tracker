@@ -26,7 +26,8 @@ export interface GeneratedApiToken {
 }
 
 /**
- * GitHub-PAT shape: a random secret shown once, stored only as a digest.
+ * `sk-`-prefixed like the AI-provider keys this app itself talks to — a random
+ * secret shown once, stored only as a digest.
  *
  * sha256 (not bcrypt) is deliberate — this value is verified on every single
  * ingestion POST, so it must be an indexed equality lookup. It is safe here
@@ -34,7 +35,7 @@ export interface GeneratedApiToken {
  * there is no dictionary to attack, so the slow-hash property buys nothing.
  */
 export function generateApiToken(): GeneratedApiToken {
-  const token = `cur_${randomBytes(32).toString('base64url')}`;
+  const token = `sk-${randomBytes(32).toString('base64url')}`;
   return {
     token,
     tokenHash: hashApiToken(token),

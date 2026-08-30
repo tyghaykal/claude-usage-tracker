@@ -238,7 +238,7 @@ describe('/api/tokens', () => {
 
     expect(created.status).toBe(201);
     const plaintext = created.body.token as string;
-    expect(plaintext).toMatch(/^cur_/);
+    expect(plaintext).toMatch(/^sk-/);
     expect(created.body.apiToken.tokenPrefix).toBe(plaintext.slice(0, 12));
 
     const list = await request(app).get('/api/tokens').set('Authorization', auth);

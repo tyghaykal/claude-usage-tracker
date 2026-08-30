@@ -18,7 +18,7 @@ describe('POST /api/usage — authentication', () => {
   });
 
   it('401s on an unknown key', async () => {
-    const res = await post('cur_definitely-not-a-real-token');
+    const res = await post('sk-definitely-not-a-real-token');
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Unknown API key/);
   });

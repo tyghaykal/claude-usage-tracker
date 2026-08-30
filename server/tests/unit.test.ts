@@ -133,7 +133,7 @@ describe('crypto', () => {
 
   it('generates a prefixed api token whose digest matches', () => {
     const { token, tokenHash, tokenPrefix } = generateApiToken();
-    expect(token.startsWith('cur_')).toBe(true);
+    expect(token.startsWith('sk-')).toBe(true);
     expect(tokenPrefix).toBe(token.slice(0, 12));
     expect(hashApiToken(token)).toBe(tokenHash);
     expect(generateApiToken().token).not.toBe(token);

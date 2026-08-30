@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '../api';
+import { useConfirmDialog } from '../composables/useConfirmDialog';
 import { formatDateTime } from '../format';
 import type { AiProviderView, ModelsListResponse, ProviderTestResult } from '../types';
 
+const { confirm } = useConfirmDialog();
 const providers = ref<AiProviderView[]>([]);
 const catalog = ref<string[]>([]);
 const error = ref('');
@@ -102,7 +104,7 @@ async function runTest(provider: AiProviderView) {
 }
 
 async function remove(provider: AiProviderView) {
-  if (!confirm(`Delete ${provider.label}?`)) return;
+  if (!(await confirm(`Delete ${provider.label}?`, { danger: true }))) return;
   await api(`/ai-providers/${provider.id}`, { method: 'DELETE' });
   await load();
 }

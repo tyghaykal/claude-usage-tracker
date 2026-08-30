@@ -1,16 +1,33 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { api } from '../api';
+import { useConfirmDialog } from '../composables/useConfirmDialog';
+import { useToast } from '../composables/useToast';
 import { formatDateTime } from '../format';
 import type { ApiTokenView } from '../types';
 
+const { confirm } = useConfirmDialog();
+const { notify } = useToast();
 const tokens = ref<ApiTokenView[]>([]);
 const label = ref('');
 const error = ref('');
 /** Held only in memory, and only until the page is left. */
 const freshToken = ref('');
+/** Which token `freshToken` belongs to, so revoking/deleting it hides the card. */
+const freshTokenId = ref('');
 
 const endpoint = `${window.location.origin}/api/usage`;
+
+const setupMode = ref<'global' | 'local'>('global');
+/** Must match the repo/directory name claude-usage-reporter reports as `project`. */
+const projectName = ref('');
+
+/** `usage-config` runs through a shell — only a space forces quoting the key. */
+function projectKeyArg(key: string): string {
+  const name = projectName.value || '<project>';
+  const arg = `usageProject:${name}:${key}`;
+  return arg.includes(' ') ? `"${arg}"` : arg;
+}
 
 async function load() {
   tokens.value = (await api<{ tokens: ApiTokenView[] }>('/tokens')).tokens;
@@ -20,11 +37,12 @@ onMounted(load);
 async function create() {
   error.value = '';
   try {
-    const res = await api<{ token: string }>('/tokens', {
+    const res = await api<{ token: string; apiToken: ApiTokenView }>('/tokens', {
       method: 'POST',
       body: { label: label.value },
     });
     freshToken.value = res.token;
+    freshTokenId.value = res.apiToken.id;
     label.value = '';
     await load();
   } catch (err) {
@@ -32,19 +50,39 @@ async function create() {
   }
 }
 
+function clearFreshToken(id: string) {
+  if (id !== freshTokenId.value) return;
+  freshToken.value = '';
+  freshTokenId.value = '';
+}
+
 async function revoke(token: ApiTokenView) {
-  if (!confirm(`Revoke ${token.tokenPrefix}…? Any machine using it stops reporting.`)) return;
+  const ok = await confirm(`Revoke ${token.tokenPrefix}…? Any machine using it stops reporting.`, {
+    danger: true,
+    confirmLabel: 'Revoke',
+  });
+  if (!ok) return;
   await api(`/tokens/${token.id}/revoke`, { method: 'POST' });
+  clearFreshToken(token.id);
   await load();
 }
 
 async function remove(token: ApiTokenView) {
-  if (!confirm(`Delete ${token.tokenPrefix}… permanently?`)) return;
+  if (!(await confirm(`Delete ${token.tokenPrefix}… permanently?`, { danger: true }))) return;
   await api(`/tokens/${token.id}`, { method: 'DELETE' });
+  clearFreshToken(token.id);
   await load();
 }
 
-const copy = (text: string) => void navigator.clipboard?.writeText(text);
+async function copy(text: string) {
+  try {
+    if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+    await navigator.clipboard.writeText(text);
+    notify('Copied to clipboard');
+  } catch {
+    notify('Could not copy — clipboard access is unavailable', 'error');
+  }
+}
 </script>
 
 <template>
@@ -75,13 +113,66 @@ const copy = (text: string) => void navigator.clipboard?.writeText(text);
       </div>
 
       <div>
-        <p class="text-sm text-emerald-900 dark:text-emerald-300">Then, on the machine you want to report from:</p>
-        <pre class="mt-1 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-slate-950">/claude-usage-reporter:usage-config set usageEndpoint {{ endpoint }}
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm text-emerald-900 dark:text-emerald-300">
+            Then, on the machine you want to report from:
+          </p>
+          <div class="flex gap-1 text-xs">
+            <button
+              type="button"
+              class="rounded-md px-2 py-1"
+              :class="setupMode === 'global' ? 'bg-emerald-900 text-white dark:bg-emerald-300 dark:text-emerald-950' : 'text-emerald-900 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900'"
+              @click="setupMode = 'global'"
+            >
+              Global (all projects)
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1"
+              :class="setupMode === 'local' ? 'bg-emerald-900 text-white dark:bg-emerald-300 dark:text-emerald-950' : 'text-emerald-900 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900'"
+              @click="setupMode = 'local'"
+            >
+              This project only
+            </button>
+          </div>
+        </div>
+
+        <pre
+          v-if="setupMode === 'global'"
+          class="mt-1 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-slate-950"
+        >/claude-usage-reporter:usage-config set usageEndpoint {{ endpoint }}
 /claude-usage-reporter:usage-config set usageAuthType Header
 /claude-usage-reporter:usage-config set usageHeaderValue {{ freshToken }}</pre>
+        <template v-else>
+          <div class="mt-1">
+            <label class="label" for="setup-project">Project (repo/directory name)</label>
+            <input
+              id="setup-project"
+              v-model="projectName"
+              class="input"
+              placeholder="client"
+            />
+          </div>
+          <pre class="mt-2 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-slate-950"
+            >/claude-usage-reporter:usage-config set {{ projectKeyArg('usageEndpoint') }} {{ endpoint }}
+/claude-usage-reporter:usage-config set {{ projectKeyArg('usageAuthType') }} Header
+/claude-usage-reporter:usage-config set {{ projectKeyArg('usageHeaderValue') }} {{ freshToken }}</pre>
+          <p class="mt-1 text-xs text-emerald-900 dark:text-emerald-300">
+            Requires claude-usage-reporter v0.2.0 or later — run
+            <code class="rounded bg-white px-1 dark:bg-slate-950">/plugin</code> to check for an
+            update. The key only needs quoting when
+            <code class="rounded bg-white px-1 dark:bg-slate-950">&lt;project&gt;</code> contains a
+            space — the shell would otherwise split it into extra arguments.
+            It must match your project's real name exactly — case, spaces, everything. Run
+            <code class="rounded bg-white px-1 dark:bg-slate-950">/claude-usage-reporter:usage-config</code>
+            with no arguments from inside that project; the terminal report's
+            <code class="rounded bg-white px-1 dark:bg-slate-950">[project-name] ...</code> line shows
+            the exact string to use.
+          </p>
+        </template>
       </div>
 
-      <button class="btn-secondary" @click="freshToken = ''">Done</button>
+      <button class="btn-secondary" @click="clearFreshToken(freshTokenId)">Done</button>
     </div>
 
     <div class="card overflow-x-auto p-0">

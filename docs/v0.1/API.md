@@ -124,8 +124,8 @@ Scoped to the caller — admins cannot read or revoke other people's tokens here
 ```jsonc
 // POST /api/tokens → 201
 {
-  "token": "cur_xxxxxxxx…",   // shown once, stored only as a sha256 digest
-  "apiToken": { "id": "…", "label": "laptop", "tokenPrefix": "cur_xxxxxxx",
+  "token": "sk-xxxxxxxx…",    // shown once, stored only as a sha256 digest
+  "apiToken": { "id": "…", "label": "laptop", "tokenPrefix": "sk-xxxxxxxx",
                 "revoked": false, "lastUsedAt": null, "createdAt": "…" }
 }
 ```

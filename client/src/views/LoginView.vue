@@ -67,7 +67,7 @@ async function submit() {
         <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">cli reset-password</code> on the server.
       </p>
       <p class="flex justify-center gap-3 text-center text-xs text-slate-400 dark:text-slate-500">
-        <span>v0.1.0</span>
+        <span>v0.1.2</span>
         <RouterLink :to="{ name: 'changelog' }" class="hover:text-slate-600 dark:hover:text-slate-300">Changelog</RouterLink>
         <RouterLink :to="{ name: 'privacy' }" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy &amp; data</RouterLink>
       </p>
