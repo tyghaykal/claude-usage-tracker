@@ -8,7 +8,15 @@
     </div>
 
     <section class="card space-y-3">
-      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.2 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.3 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Admins can export the entire database to a zip file, and restore it later by uploading that zip back — see the new Backup page.</li>
+        <li>The navigation collapses into a mobile menu on small screens, and a few narrow-viewport layout overflows were fixed.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.2</h2>
       <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
         <li>Confirmation prompts (delete, revoke) use an in-app dialog instead of the browser's native popup.</li>
         <li>Actions like copying a token now show a toast notification in the top-right corner.</li>

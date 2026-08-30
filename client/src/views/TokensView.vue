@@ -108,7 +108,7 @@ async function copy(text: string) {
         Copy this token now — it is never shown again
       </h2>
       <div class="flex items-center gap-2">
-        <code class="grow overflow-x-auto rounded bg-white px-3 py-2 text-sm dark:bg-slate-950">{{ freshToken }}</code>
+        <code class="min-w-0 grow overflow-x-auto rounded bg-white px-3 py-2 text-sm dark:bg-slate-950">{{ freshToken }}</code>
         <button class="btn-secondary" @click="copy(freshToken)">Copy</button>
       </div>
 

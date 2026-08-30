@@ -7,6 +7,7 @@ import type { Config } from './config.js';
 import { errorHandler, notFoundHandler, requireAdmin, requireAuth } from './middleware.js';
 import { aiProviderRoutes, type AiProviderDeps } from './routes/aiProviders.js';
 import { authRoutes } from './routes/auth.js';
+import { backupRoutes } from './routes/backup.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { meRoutes } from './routes/me.js';
@@ -72,6 +73,7 @@ export function createApp(config: Config, deps: AppDeps = {}): BuiltApp {
   // Admin-only surfaces.
   app.use('/api/users', auth, requireAdmin, userRoutes());
   app.use('/api/ai-providers', auth, requireAdmin, aiProviderRoutes(config, cache, deps));
+  app.use('/api/backup', auth, requireAdmin, backupRoutes(cache));
 
   app.use(notFoundHandler);
   app.use(errorHandler(config));

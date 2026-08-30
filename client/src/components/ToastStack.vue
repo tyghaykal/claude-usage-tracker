@@ -5,7 +5,7 @@ const { toasts, dismiss } = useToast();
 </script>
 
 <template>
-  <div class="pointer-events-none fixed right-4 top-4 z-[60] flex w-full max-w-xs flex-col gap-2">
+  <div class="pointer-events-none fixed right-4 top-4 z-[60] flex w-[calc(100%-2rem)] max-w-xs flex-col gap-2">
     <TransitionGroup
       enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 -translate-y-1"
