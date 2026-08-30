@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-08-28T13:27:13.085Z",
+  "projectRoot": "/Users/redcomm/Documents/Code/ai-usage",
+  "structure": {
+    "hasPackageJson": false,
+    "hasTsConfig": false,
+    "hasClaudeConfig": true,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1787923633085
+}

@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+.git
+.github
+docs
+**/*.md
+.claude
+.claude-flow
+.agents
+.swarm
+*.db

@@ -1,0 +1,40 @@
+# Development overlay: source is bind-mounted and both services watch it, so a
+# saved file is live in seconds with no rebuild.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   (or just: npm run docker:dev)
+#
+# The base file builds production images that COPY the source at build time —
+# those only change when you pass --build. This file is the opposite trade:
+# instant reload, dev dependencies present, not for production.
+services:
+  api:
+    build:
+      # Deps only, no compile step — source arrives via the bind mount below.
+      target: deps
+    command: npm exec -- tsx watch server/src/index.ts
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./server:/app/server
+      # Anonymous volume keeps the image's Linux-built node_modules from being
+      # shadowed by the host's (macOS binaries would not run here).
+      - /app/server/node_modules
+    # Published so you can curl the API directly, bypassing the web container.
+    ports:
+      - '${API_PORT:-4000}:4000'
+
+  web:
+    build:
+      target: deps
+    # Binds :80 inside the container so the base file's ${WEB_PORT}:80 mapping
+    # keeps working — dev and production are reached at the same URL.
+    command: npm run dev --workspace client -- --host 0.0.0.0 --port 80
+    environment:
+      # Inside the compose network the API is a service name, not localhost.
+      VITE_API_PROXY_TARGET: http://api:4000
+      # The browser reached us on the published port, so HMR must dial that.
+      VITE_HMR_CLIENT_PORT: ${WEB_PORT:-8080}
+    volumes:
+      - ./client:/app/client
+      - /app/client/node_modules
