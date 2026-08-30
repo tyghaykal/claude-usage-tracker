@@ -21,8 +21,9 @@ services:
       # shadowed by the host's (macOS binaries would not run here).
       - /app/server/node_modules
     # Published so you can curl the API directly, bypassing the web container.
+    # Loopback-only by default — see BIND_HOST in env.example.
     ports:
-      - '${API_PORT:-4000}:4000'
+      - '${BIND_HOST:-127.0.0.1}:${API_PORT:-4000}:4000'
 
   web:
     build:
