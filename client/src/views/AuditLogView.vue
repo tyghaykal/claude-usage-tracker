@@ -18,6 +18,29 @@ const actionLabels: Record<string, string> = {
   'user.password_changed': 'Password changed',
 };
 
+const actionColors: Record<string, string> = {
+  'user.created': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  'user.deleted': 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  'user.role_changed': 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  'user.password_reset': 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+  'user.password_changed': 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+};
+
+/** Turns an entry's free-form `meta` into one readable line instead of raw JSON. */
+function describe(row: AuditLogEntry): string {
+  const meta = row.meta;
+  if (!meta) return '—';
+  if (row.action === 'user.role_changed' && meta.from && meta.to) {
+    return `${meta.from} → ${meta.to}`;
+  }
+  if (row.action === 'user.created' && meta.role) {
+    return meta.bootstrap ? `role: ${meta.role} (bootstrap)` : `role: ${meta.role}`;
+  }
+  return Object.entries(meta)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(', ');
+}
+
 async function load() {
   loading.value = true;
   error.value = '';
@@ -64,12 +87,14 @@ watch(page, load);
           </tr>
           <tr v-for="row in rows" v-else :key="row.id">
             <td class="td whitespace-nowrap">{{ formatDateTime(row.createdAt) }}</td>
-            <td class="td">{{ actionLabels[row.action] ?? row.action }}</td>
+            <td class="td">
+              <span class="badge" :class="actionColors[row.action] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'">
+                {{ actionLabels[row.action] ?? row.action }}
+              </span>
+            </td>
             <td class="td">{{ row.actorName }}</td>
             <td class="td">{{ row.targetName }}<span v-if="row.targetEmail" class="text-slate-500 dark:text-slate-400"> ({{ row.targetEmail }})</span></td>
-            <td class="td text-xs text-slate-500 dark:text-slate-400">
-              <span v-if="row.meta">{{ JSON.stringify(row.meta) }}</span>
-            </td>
+            <td class="td text-slate-500 dark:text-slate-400">{{ describe(row) }}</td>
           </tr>
         </tbody>
       </table>
