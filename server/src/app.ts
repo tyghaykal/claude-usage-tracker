@@ -6,6 +6,7 @@ import { TtlCache } from './cache.js';
 import type { Config } from './config.js';
 import { errorHandler, notFoundHandler, requireAdmin, requireAuth } from './middleware.js';
 import { aiProviderRoutes, type AiProviderDeps } from './routes/aiProviders.js';
+import { auditLogRoutes } from './routes/auditLogs.js';
 import { authRoutes } from './routes/auth.js';
 import { backupRoutes } from './routes/backup.js';
 import { dashboardRoutes } from './routes/dashboard.js';
@@ -74,6 +75,7 @@ export function createApp(config: Config, deps: AppDeps = {}): BuiltApp {
   app.use('/api/users', auth, requireAdmin, userRoutes());
   app.use('/api/ai-providers', auth, requireAdmin, aiProviderRoutes(config, cache, deps));
   app.use('/api/backup', auth, requireAdmin, backupRoutes(cache));
+  app.use('/api/audit-logs', auth, requireAdmin, auditLogRoutes());
 
   app.use(notFoundHandler);
   app.use(errorHandler(config));

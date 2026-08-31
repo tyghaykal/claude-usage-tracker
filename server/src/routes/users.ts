@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { recordAudit } from '../audit.js';
 import { hashPassword } from '../crypto.js';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { asyncHandler, objectIdSchema, validate, validated } from '../middleware.js';
@@ -51,6 +52,7 @@ export function userRoutes(): Router {
         role,
         passwordHash: await hashPassword(password),
       });
+      await recordAudit('user.created', req.user!, { id: user._id, name: user.name, email: user.email }, { role });
       res.status(201).json({ user: publicUser(user) });
     }),
   );
@@ -75,12 +77,44 @@ export function userRoutes(): Router {
         if (otherAdmins === 0) throw badRequest('Cannot demote the last remaining admin');
       }
 
+      const previousRole = user.role;
+
       if (name !== undefined) user.name = name;
       if (role !== undefined) user.role = role;
       if (password !== undefined) user.passwordHash = await hashPassword(password);
 
       await user.save();
+
+      const target = { id: user._id, name: user.name, email: user.email };
+      if (role !== undefined && role !== previousRole) {
+        await recordAudit('user.role_changed', req.user!, target, { from: previousRole, to: role });
+      }
+      if (password !== undefined) {
+        await recordAudit('user.password_reset', req.user!, target);
+      }
+
       res.json({ user: publicUser(user) });
+    }),
+  );
+
+  router.delete(
+    '/:id',
+    validate(idParams, 'params'),
+    asyncHandler(async (req, res) => {
+      const { id } = validated<z.infer<typeof idParams>>(req, 'params');
+
+      const user = await User.findById(id).exec();
+      if (!user) throw notFound('User not found');
+
+      // Deleting an admin outright is a footgun (and can leave the app with
+      // zero admins) — demote them to a regular user first, same as the UI copy says.
+      if (user.role === 'admin') {
+        throw badRequest('Demote this admin to a regular user before deleting them');
+      }
+
+      await user.deleteOne();
+      await recordAudit('user.deleted', req.user!, { id: user._id, name: user.name, email: user.email });
+      res.status(204).end();
     }),
   );
 

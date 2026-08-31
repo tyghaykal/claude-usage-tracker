@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { recordAudit } from '../audit.js';
 import { hashPassword, verifyPassword } from '../crypto.js';
 import { badRequest, unauthorized } from '../errors.js';
 import { asyncHandler, validate } from '../middleware.js';
@@ -59,6 +60,13 @@ export function meRoutes(): Router {
       if (name !== undefined) user.name = name;
 
       await user.save();
+      if (newPassword !== undefined) {
+        await recordAudit('user.password_changed', user, {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+        });
+      }
       res.json({ user: publicUser(user) });
     }),
   );

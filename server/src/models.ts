@@ -247,3 +247,41 @@ const projectSchema = new Schema<ProjectDoc>(
 );
 
 export const Project: Model<ProjectDoc> = model<ProjectDoc>('Project', projectSchema);
+
+/* ---------------------------------------------------------------- AuditLog */
+
+export type AuditAction =
+  | 'user.created'
+  | 'user.deleted'
+  | 'user.role_changed'
+  | 'user.password_reset'
+  | 'user.password_changed';
+
+/** Snapshots actor/target name+email so an entry stays readable after either
+ *  account is later deleted or renamed. */
+export interface AuditLogDoc extends Document<Types.ObjectId> {
+  action: AuditAction;
+  actorId: Types.ObjectId | null;
+  actorName: string;
+  targetId: Types.ObjectId | null;
+  targetName: string;
+  targetEmail: string | null;
+  meta: Record<string, unknown> | null;
+  createdAt: Date;
+}
+
+const auditLogSchema = new Schema<AuditLogDoc>(
+  {
+    action: { type: String, required: true, index: true },
+    actorId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    actorName: { type: String, required: true },
+    targetId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    targetName: { type: String, required: true },
+    targetEmail: { type: String, default: null },
+    meta: { type: Schema.Types.Mixed, default: null },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+);
+auditLogSchema.index({ createdAt: -1 });
+
+export const AuditLog: Model<AuditLogDoc> = model<AuditLogDoc>('AuditLog', auditLogSchema);

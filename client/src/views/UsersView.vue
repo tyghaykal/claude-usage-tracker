@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '../api';
+import { useConfirmDialog } from '../composables/useConfirmDialog';
+import { useToast } from '../composables/useToast';
 import { formatDateTime } from '../format';
 import type { Role, User } from '../types';
+
+const { confirm } = useConfirmDialog();
+const { notify } = useToast();
 
 const users = ref<User[]>([]);
 const error = ref('');
@@ -36,6 +41,22 @@ async function setRole(user: User, role: Role) {
     await load();
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not change the role';
+  }
+}
+
+async function remove(user: User) {
+  const ok = await confirm(`Delete ${user.name} (${user.email})? This cannot be undone.`, {
+    title: 'Delete user',
+    danger: true,
+  });
+  if (!ok) return;
+  error.value = '';
+  try {
+    await api(`/users/${user.id}`, { method: 'DELETE' });
+    notify(`Deleted ${user.name}`);
+    await load();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not delete the user';
   }
 }
 
@@ -120,8 +141,16 @@ async function resetPassword() {
               </select>
             </td>
             <td class="td whitespace-nowrap">{{ formatDateTime(u.createdAt) }}</td>
-            <td class="td text-right">
+            <td class="td text-right space-x-2 whitespace-nowrap">
               <button class="btn-secondary" @click="resetting.id = u.id">Reset password</button>
+              <button
+                class="btn-secondary text-red-600 dark:text-red-400"
+                :disabled="u.role === 'admin'"
+                :title="u.role === 'admin' ? 'Demote to user before deleting' : ''"
+                @click="remove(u)"
+              >
+                Delete
+              </button>
             </td>
           </tr>
         </tbody>

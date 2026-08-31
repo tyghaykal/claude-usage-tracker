@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { verifyPassword } from '../src/crypto.js';
-import { ApiToken, User } from '../src/models.js';
+import { ApiToken, AuditLog, User } from '../src/models.js';
 import { buildApp, makeApiToken, makeUser, makeUserAndLogin, PASSWORD } from './helpers.js';
 
 const { app } = buildApp();
@@ -225,6 +225,53 @@ describe('/api/users (admin only)', () => {
       (await request(app).patch(`/api/users/${user._id.toString()}`).set('Authorization', auth).send({}))
         .status,
     ).toBe(400);
+  });
+
+  it('deletes a non-admin user', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const target = await makeUser({ name: 'ToDelete' });
+
+    const res = await request(app).delete(`/api/users/${target._id.toString()}`).set('Authorization', auth);
+    expect(res.status).toBe(204);
+    expect(await User.findById(target._id).exec()).toBeNull();
+  });
+
+  it('refuses to delete an admin until demoted', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const other = await makeUser({ role: 'admin' });
+
+    const blocked = await request(app).delete(`/api/users/${other._id.toString()}`).set('Authorization', auth);
+    expect(blocked.status).toBe(400);
+    expect(await User.findById(other._id).exec()).not.toBeNull();
+
+    await request(app).patch(`/api/users/${other._id.toString()}`).set('Authorization', auth).send({ role: 'user' });
+    const res = await request(app).delete(`/api/users/${other._id.toString()}`).set('Authorization', auth);
+    expect(res.status).toBe(204);
+  });
+
+  it('404s deleting an unknown user and 400s a malformed id', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    expect(
+      (await request(app).delete('/api/users/aaaaaaaaaaaaaaaaaaaaaaaa').set('Authorization', auth)).status,
+    ).toBe(404);
+    expect((await request(app).delete('/api/users/nope').set('Authorization', auth)).status).toBe(400);
+  });
+
+  it('records an audit trail for creation, role changes, password resets and deletion', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const created = await request(app)
+      .post('/api/users')
+      .set('Authorization', auth)
+      .send({ name: 'Audited', email: 'audited@example.com', password: 'password1234' });
+    const id = created.body.user.id as string;
+
+    await request(app).patch(`/api/users/${id}`).set('Authorization', auth).send({ password: 'new-password-1' });
+    await request(app).delete(`/api/users/${id}`).set('Authorization', auth);
+
+    const actions = (await AuditLog.find().sort({ createdAt: 1 }).exec()).map((l) => l.action);
+    expect(actions).toEqual(
+      expect.arrayContaining(['user.created', 'user.password_reset', 'user.deleted']),
+    );
   });
 });
 

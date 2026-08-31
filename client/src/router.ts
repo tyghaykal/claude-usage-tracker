@@ -52,6 +52,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./views/BackupView.vue'),
     meta: { auth: true, admin: true },
   },
+  {
+    path: '/audit-log',
+    name: 'audit-log',
+    component: () => import('./views/AuditLogView.vue'),
+    meta: { auth: true, admin: true },
+  },
   { path: '/privacy', name: 'privacy', component: () => import('./views/PrivacyView.vue') },
   { path: '/changelog', name: 'changelog', component: () => import('./views/ChangelogView.vue') },
   { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -21,6 +21,7 @@ const links = computed(() => [
   ...(auth.isAdmin
     ? [
         { name: 'users', label: 'Users' },
+        { name: 'audit-log', label: 'Audit log' },
         { name: 'ai-providers', label: 'AI providers' },
         { name: 'backup', label: 'Backup' },
       ]
@@ -136,7 +137,7 @@ async function signOut() {
     </main>
 
     <footer class="mx-auto flex max-w-7xl justify-center gap-4 px-4 pb-6 text-xs text-slate-400 dark:text-slate-500">
-      <span>v0.1.3</span>
+      <span>v0.2.0</span>
       <RouterLink :to="{ name: 'changelog' }" class="hover:text-slate-600 dark:hover:text-slate-300">Changelog</RouterLink>
       <RouterLink :to="{ name: 'privacy' }" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy &amp; data</RouterLink>
     </footer>

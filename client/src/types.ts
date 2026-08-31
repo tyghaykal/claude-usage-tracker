@@ -158,6 +158,18 @@ export interface ProjectHistory {
   history: ProjectRenameEntry[];
 }
 
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  actorId: string | null;
+  actorName: string;
+  targetId: string | null;
+  targetName: string;
+  targetEmail: string | null;
+  meta: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface UsageFilter {
   project?: string;
   userId?: string;

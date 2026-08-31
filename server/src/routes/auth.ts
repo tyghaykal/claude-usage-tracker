@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { recordAudit } from '../audit.js';
 import type { Config } from '../config.js';
 import { hashPassword, verifyPassword } from '../crypto.js';
 import { conflict, unauthorized } from '../errors.js';
@@ -83,6 +84,12 @@ export function authRoutes(config: Config): Router {
         passwordHash: await hashPassword(password),
         role: 'admin',
       });
+      await recordAudit(
+        'user.created',
+        user,
+        { id: user._id, name: user.name, email: user.email },
+        { role: 'admin', bootstrap: true },
+      );
       res.status(201).json({ user: publicUser(user) });
     }),
   );

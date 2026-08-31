@@ -8,7 +8,15 @@
     </div>
 
     <section class="card space-y-3">
-      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.4 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.2.0 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Admins can now delete a non-admin user from the Users page; an admin account must be demoted first.</li>
+        <li>New Audit log page (admin-only) recording user creation, deletion, role changes, and password resets/changes.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.4</h2>
       <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
         <li>Fixed a build-breaking type error in cost recalculation (<code class="rounded bg-slate-100 px-1 dark:bg-slate-700">POST /api/usage-logs/recalculate-cost</code>) introduced by a stricter pricing lookup type.</li>
       </ul>
