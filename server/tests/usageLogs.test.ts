@@ -278,6 +278,176 @@ describe('GET /api/usage-logs/:id', () => {
   });
 });
 
+describe('PATCH /api/usage-logs/:id/provider', () => {
+  it('requires authentication', async () => {
+    await ingest();
+    const log = await UsageLog.findOne().exec();
+    const res = await request(app)
+      .patch(`/api/usage-logs/${log!._id.toString()}/provider`)
+      .send({ provider: 'claude-session' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a non-admin user', async () => {
+    await ingest();
+    const log = await UsageLog.findOne().exec();
+    const { auth } = await makeUserAndLogin(app, { role: 'user' });
+
+    const res = await request(app)
+      .patch(`/api/usage-logs/${log!._id.toString()}/provider`)
+      .set('Authorization', auth)
+      .send({ provider: 'claude-session' });
+    expect(res.status).toBe(403);
+  });
+
+  it('sets the provider on a log ingested before this field existed', async () => {
+    await ingest();
+    const before = await UsageLog.findOne().exec();
+    expect(before!.provider).toBeNull();
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+
+    const res = await request(app)
+      .patch(`/api/usage-logs/${before!._id.toString()}/provider`)
+      .set('Authorization', auth)
+      .send({ provider: 'https://api.amanai.dev' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.log.provider).toBe('https://api.amanai.dev');
+    expect((await UsageLog.findById(before!._id).exec())!.provider).toBe('https://api.amanai.dev');
+  });
+
+  it('404s for a missing id', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const res = await request(app)
+      .patch('/api/usage-logs/aaaaaaaaaaaaaaaaaaaaaaaa/provider')
+      .set('Authorization', auth)
+      .send({ provider: 'claude-session' });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects an empty provider', async () => {
+    await ingest();
+    const log = await UsageLog.findOne().exec();
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+
+    const res = await request(app)
+      .patch(`/api/usage-logs/${log!._id.toString()}/provider`)
+      .set('Authorization', auth)
+      .send({ provider: '' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/usage-logs/set-provider', () => {
+  it('requires authentication', async () => {
+    const res = await request(app).post('/api/usage-logs/set-provider').send({ filter: {}, provider: 'x' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a non-admin user', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'user' });
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: {}, provider: 'claude-session' });
+    expect(res.status).toBe(403);
+  });
+
+  it('sets the provider on an explicit selection of ids', async () => {
+    await ingest();
+    await ingest();
+    await ingest();
+    const [a, b] = await UsageLog.find().sort({ createdAt: 1 }).exec();
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ ids: [a!._id.toString(), b!._id.toString()], provider: 'claude-session' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ matched: 2, updated: 2 });
+    const rows = await UsageLog.find().sort({ createdAt: 1 }).exec();
+    expect(rows.map((r) => r.provider)).toEqual(['claude-session', 'claude-session', null]);
+  });
+
+  it('sets the provider on everything matching a filter, not just one page', async () => {
+    await ingest({ project: 'legacy' });
+    await ingest({ project: 'legacy' });
+    await ingest({ project: 'other' });
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: { project: 'legacy' }, provider: 'https://api.amanai.dev' });
+
+    expect(res.body).toEqual({ matched: 2, updated: 2 });
+    const rows = await UsageLog.find().sort({ project: 1 }).exec();
+    expect(rows.map((r) => [r.project, r.provider])).toEqual([
+      ['legacy', 'https://api.amanai.dev'],
+      ['legacy', 'https://api.amanai.dev'],
+      ['other', null],
+    ]);
+  });
+
+  it('reports matched separately from updated', async () => {
+    await ingest();
+    await ingest();
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: {}, provider: 'claude-session' });
+
+    expect(res.body).toEqual({ matched: 2, updated: 2 });
+  });
+
+  it('rejects a body missing provider', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: {} });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a body that is neither ids nor filter', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const res = await request(app)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ provider: 'claude-session' });
+    expect(res.status).toBe(400);
+  });
+
+  it('broadcasts a realtime event only when something actually changed', async () => {
+    const broadcaster = createBroadcaster();
+    const listener = vi.fn();
+    broadcaster.subscribe(listener);
+    const { app: withBroadcaster } = buildApp({ broadcaster });
+    const { auth } = await makeUserAndLogin(withBroadcaster, { role: 'admin' });
+
+    await request(withBroadcaster)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: { project: 'nothing-here' }, provider: 'claude-session' });
+    expect(listener).not.toHaveBeenCalled();
+
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await request(withBroadcaster).post('/api/usage').set('X-API-Key', token).send(usagePayload());
+    listener.mockClear();
+
+    await request(withBroadcaster)
+      .post('/api/usage-logs/set-provider')
+      .set('Authorization', auth)
+      .send({ filter: {}, provider: 'claude-session' });
+    expect(listener).toHaveBeenCalledWith({ type: 'data-changed' });
+  });
+});
+
 describe('POST /api/usage-logs/recalculate-cost', () => {
   it('reprices selected ids against current pricing', async () => {
     const pricing = await makePricing('claude-sonnet-5', { inputPerMTok: 3 });
@@ -406,6 +576,47 @@ describe('POST /api/usage-logs/recalculate-cost', () => {
     expect(res.body).toEqual({ total: 2, updated: 1, skipped: 1 });
     const untouched = await UsageLog.findOne({ modelId: 'still-unknown' }).exec();
     expect(untouched!.recalculatedAt).toBeNull();
+  });
+
+  it('blanks a priced row whose provider has pricing disabled', async () => {
+    await makePricing('claude-sonnet-5');
+    await ingest({ provider: 'https://api.amanai.dev' });
+    const before = await UsageLog.findOne().exec();
+    expect(before!.estimatedCostUsd).not.toBeNull();
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    // Through the route (not a direct model write) so it invalidates the
+    // cache the ingest above already populated with "not disabled".
+    await request(app)
+      .patch(`/api/provider-pricing/${encodeURIComponent('https://api.amanai.dev')}`)
+      .set('Authorization', auth)
+      .send({ pricingDisabled: true });
+
+    const res = await request(app)
+      .post('/api/usage-logs/recalculate-cost')
+      .set('Authorization', auth)
+      .send({ filter: {} });
+
+    expect(res.body).toEqual({ total: 1, updated: 1, skipped: 0 });
+    const after = await UsageLog.findOne().exec();
+    expect(after!.estimatedCostUsd).toBeNull();
+    expect(after!.pricingSnapshot).toBeNull();
+    expect(after!.recalculatedAt).toBeInstanceOf(Date);
+  });
+
+  it('leaves an already-blank row from a disabled provider untouched (skipped, not updated)', async () => {
+    await ingest({ provider: 'https://api.amanai.dev', model: 'still-unknown' });
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await request(app)
+      .patch(`/api/provider-pricing/${encodeURIComponent('https://api.amanai.dev')}`)
+      .set('Authorization', auth)
+      .send({ pricingDisabled: true });
+
+    const res = await request(app)
+      .post('/api/usage-logs/recalculate-cost')
+      .set('Authorization', auth)
+      .send({ filter: {} });
+
+    expect(res.body).toEqual({ total: 1, updated: 0, skipped: 1 });
   });
 
   it('rejects a body that is neither ids nor filter', async () => {

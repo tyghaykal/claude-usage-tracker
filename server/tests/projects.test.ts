@@ -90,6 +90,44 @@ describe('POST /api/projects/rename', () => {
     expect(logs.map((l) => l.project)).toEqual(['beta']);
   });
 
+  it('carries a label that was only mirroring the old project name along with the rename', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    // No project_label sent — the plugin default is the project name itself,
+    // recorded here explicitly so the test is not relying on that default.
+    await request(app)
+      .post('/api/usage')
+      .set('X-API-Key', token)
+      .send(usagePayload({ project: 'alpha', project_label: 'alpha' }));
+
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'alpha', newName: 'beta' });
+
+    const log = await UsageLog.findOne().exec();
+    expect(log).toMatchObject({ project: 'beta', projectLabel: 'beta' });
+  });
+
+  it('leaves a genuinely custom label untouched by a rename', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await request(app)
+      .post('/api/usage')
+      .set('X-API-Key', token)
+      .send(usagePayload({ project: 'alpha', project_label: 'Client X' }));
+
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'alpha', newName: 'beta' });
+
+    const log = await UsageLog.findOne().exec();
+    expect(log).toMatchObject({ project: 'beta', projectLabel: 'Client X' });
+  });
+
   it('accumulates multiple renames in order', async () => {
     const { auth } = await makeUserAndLogin(app, { role: 'admin' });
     await ingest(app, 'alpha');

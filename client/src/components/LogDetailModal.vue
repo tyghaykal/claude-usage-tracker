@@ -20,6 +20,41 @@ const newName = ref('');
 const renameBusy = ref(false);
 const renameError = ref('');
 
+const currentProvider = ref(props.log.provider);
+const editingProvider = ref(false);
+const providerInput = ref('');
+const providerBusy = ref(false);
+const providerError = ref('');
+
+function startEditProvider() {
+  providerInput.value = currentProvider.value ?? '';
+  providerError.value = '';
+  editingProvider.value = true;
+}
+
+async function saveProvider() {
+  const value = providerInput.value.trim();
+  if (!value) {
+    providerError.value = 'Provider is required';
+    return;
+  }
+  providerBusy.value = true;
+  providerError.value = '';
+  try {
+    const res = await api<{ log: UsageLogDetail }>(`/usage-logs/${props.log.id}/provider`, {
+      method: 'PATCH',
+      body: { provider: value },
+    });
+    currentProvider.value = res.log.provider;
+    editingProvider.value = false;
+    emit('recalculated', res.log);
+  } catch (err) {
+    providerError.value = err instanceof Error ? err.message : 'Could not save provider';
+  } finally {
+    providerBusy.value = false;
+  }
+}
+
 async function loadHistory() {
   const res = await api<{ project: ProjectHistory }>(
     `/projects/${encodeURIComponent(currentProject.value)}`,
@@ -49,6 +84,13 @@ async function confirmRename() {
     currentProject.value = res.project.name;
     history.value = res.project.history;
     renaming.value = false;
+    // Refetch rather than patch `project` in locally: the rename may also
+    // have synced this log's `projectLabel` server-side (when it was just
+    // mirroring the old name), and the header prefers that label — a
+    // hand-built object would show the label as stale even though the
+    // rename fully succeeded.
+    const { log } = await api<{ log: UsageLogDetail }>(`/usage-logs/${props.log.id}`);
+    emit('recalculated', log);
   } catch (err) {
     renameError.value = err instanceof Error ? err.message : 'Rename failed';
   } finally {
@@ -60,6 +102,12 @@ watch(
   () => props.log.project,
   (project) => {
     currentProject.value = project;
+  },
+);
+watch(
+  () => props.log.provider,
+  (provider) => {
+    currentProvider.value = provider;
   },
 );
 onMounted(loadHistory);
@@ -165,6 +213,32 @@ const rawPayloadJson = computed(() =>
         <div>
           <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Model</dt>
           <dd class="mt-0.5">{{ log.model ?? '— not reported —' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Provider</dt>
+          <dd v-if="editingProvider" class="mt-0.5 flex items-center gap-1">
+            <input
+              v-model="providerInput"
+              class="input h-7 py-0 text-sm"
+              :disabled="providerBusy"
+              placeholder="claude-session"
+              @keyup.enter="saveProvider"
+              @keyup.escape="editingProvider = false"
+            />
+            <button class="btn-primary px-2 py-1 text-xs" :disabled="providerBusy" @click="saveProvider">
+              {{ providerBusy ? '…' : 'Save' }}
+            </button>
+            <button class="btn-secondary px-2 py-1 text-xs" :disabled="providerBusy" @click="editingProvider = false">
+              Cancel
+            </button>
+          </dd>
+          <dd v-else class="mt-0.5 flex items-center gap-2">
+            {{ currentProvider ?? '— not reported —' }}
+            <button v-if="auth.isAdmin" class="text-xs text-blue-600 hover:underline dark:text-blue-400" @click="startEditProvider">
+              {{ currentProvider ? 'Edit' : 'Add' }}
+            </button>
+          </dd>
+          <p v-if="providerError" class="mt-1 text-xs text-red-700 dark:text-red-400">{{ providerError }}</p>
         </div>
         <div>
           <dt class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Session</dt>

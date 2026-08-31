@@ -64,6 +64,7 @@ export class TtlCache {
 export const CacheKeys = {
   pricing: 'pricing:',
   pricingAll: 'pricing:all',
+  providerPricing: 'provider-pricing:',
   dashboard: 'dashboard:',
   aiSearch: 'ai-search:',
 } as const;

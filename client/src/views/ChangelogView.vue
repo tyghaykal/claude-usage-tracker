@@ -8,7 +8,17 @@
     </div>
 
     <section class="card space-y-3">
-      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.3.0 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.4.0 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Usage logs now record the reporter's <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">provider</code> field (<code class="rounded bg-slate-100 px-1 dark:bg-slate-700">claude-session</code>, or a custom <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">ANTHROPIC_BASE_URL</code> host); admins can add it to older records individually or in bulk.</li>
+        <li>New Providers tab on the Models page to disable cost estimation for selected providers, with the option list built automatically from what's been reported.</li>
+        <li>Admins can bulk-set the project on a selection of logs, or on everything matching the current filter, not just one record at a time.</li>
+        <li>Fixed: renaming a project could leave stray or stale-labeled logs behind when a reporting client kept sending the pre-rename name — new reports, and the display of already-renamed ones, now stay in sync.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.3.0</h2>
       <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
         <li>Admins can edit a user's name and email from the Users page.</li>
         <li>The top navigation bar groups admin-only pages (Users, Audit log, AI providers, Backup) under one "Admin" dropdown instead of a pill each.</li>

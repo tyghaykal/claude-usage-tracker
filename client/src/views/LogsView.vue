@@ -22,7 +22,7 @@ const error = ref('');
 
 const selected = ref(new Set<string>());
 const openLog = ref<UsageLogDetail | null>(null);
-const recalcMessage = ref('');
+const bulkMessage = ref('');
 const recalcBusy = ref(false);
 const userNames = ref(new Map<string, string>());
 
@@ -81,6 +81,49 @@ async function confirmRenameSelected() {
     renameError.value = err instanceof Error ? err.message : 'Rename failed';
   } finally {
     renameBusy.value = false;
+  }
+}
+
+/** Bulk-tag a `provider` — mainly for records ingested before the plugin sent
+ *  this field. Same "ids or filter" scope choice as recalculate(). */
+const settingProvider = ref(false);
+const providerScope = ref<'selected' | 'filter'>('selected');
+const providerValue = ref('');
+const providerBusy = ref(false);
+const providerError = ref('');
+
+function startSetProvider(scope: 'selected' | 'filter') {
+  providerScope.value = scope;
+  providerValue.value = '';
+  providerError.value = '';
+  settingProvider.value = true;
+}
+
+async function confirmSetProvider() {
+  const provider = providerValue.value.trim();
+  if (!provider) {
+    providerError.value = 'Provider is required';
+    return;
+  }
+  providerBusy.value = true;
+  providerError.value = '';
+  try {
+    const body =
+      providerScope.value === 'selected'
+        ? { ids: [...selected.value], provider }
+        : { filter: apiFilter.value, provider };
+    const res = await api<{ matched: number; updated: number }>('/usage-logs/set-provider', {
+      method: 'POST',
+      body,
+    });
+    bulkMessage.value = `Set provider on ${res.updated} of ${res.matched} record(s).`;
+    settingProvider.value = false;
+    selected.value = new Set();
+    await load();
+  } catch (err) {
+    providerError.value = err instanceof Error ? err.message : 'Could not set provider';
+  } finally {
+    providerBusy.value = false;
   }
 }
 
@@ -146,7 +189,7 @@ async function onRecalculated(log: UsageLogDetail) {
  */
 async function recalculate(scope: 'selected' | 'filter') {
   recalcBusy.value = true;
-  recalcMessage.value = '';
+  bulkMessage.value = '';
   try {
     const body =
       scope === 'selected' ? { ids: [...selected.value] } : { filter: apiFilter.value };
@@ -154,13 +197,13 @@ async function recalculate(scope: 'selected' | 'filter') {
       '/usage-logs/recalculate-cost',
       { method: 'POST', body },
     );
-    recalcMessage.value =
+    bulkMessage.value =
       `Repriced ${res.updated} of ${res.total} record(s).` +
       (res.skipped ? ` ${res.skipped} skipped — no pricing for that model yet.` : '');
     selected.value = new Set();
     await load();
   } catch (err) {
-    recalcMessage.value = err instanceof Error ? err.message : 'Recalculation failed';
+    bulkMessage.value = err instanceof Error ? err.message : 'Recalculation failed';
   } finally {
     recalcBusy.value = false;
   }
@@ -201,10 +244,21 @@ async function recalculate(scope: 'selected' | 'filter') {
         >
           Rename project ({{ selected.size }} selected)
         </button>
+        <button
+          v-if="auth.isAdmin"
+          class="btn-secondary"
+          :disabled="selected.size === 0"
+          @click="startSetProvider('selected')"
+        >
+          Set provider ({{ selected.size }} selected)
+        </button>
+        <button v-if="auth.isAdmin" class="btn-secondary" @click="startSetProvider('filter')">
+          Set provider for all {{ total }} matching this filter
+        </button>
         <span v-if="outdatedCount" class="badge bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
           {{ outdatedCount }} row(s) on this page use outdated pricing
         </span>
-        <span v-if="recalcMessage" class="text-sm text-slate-600 dark:text-slate-400">{{ recalcMessage }}</span>
+        <span v-if="bulkMessage" class="text-sm text-slate-600 dark:text-slate-400">{{ bulkMessage }}</span>
       </div>
 
       <div v-if="renaming" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
@@ -226,6 +280,29 @@ async function recalculate(scope: 'selected' | 'filter') {
         </button>
         <span v-if="renameError" class="text-sm text-red-700 dark:text-red-400">{{ renameError }}</span>
       </div>
+
+      <div v-if="settingProvider" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+        <span class="whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
+          Set provider on
+          {{ providerScope === 'selected' ? `${selected.size} selected` : `all ${total} matching this filter` }}
+          to
+        </span>
+        <input
+          v-model="providerValue"
+          class="input w-56"
+          :disabled="providerBusy"
+          placeholder="claude-session"
+          @keyup.enter="confirmSetProvider"
+          @keyup.escape="settingProvider = false"
+        />
+        <button class="btn-primary" :disabled="providerBusy" @click="confirmSetProvider">
+          {{ providerBusy ? 'Saving…' : 'Save' }}
+        </button>
+        <button class="btn-secondary" :disabled="providerBusy" @click="settingProvider = false">
+          Cancel
+        </button>
+        <span v-if="providerError" class="text-sm text-red-700 dark:text-red-400">{{ providerError }}</span>
+      </div>
     </div>
 
     <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ error }}</p>
@@ -241,16 +318,17 @@ async function recalculate(scope: 'selected' | 'filter') {
             <th class="th">Project</th>
             <th class="th">Developer</th>
             <th class="th">Model</th>
+            <th class="th">Provider</th>
             <th class="th text-right">Tokens</th>
             <th class="th text-right">Est. cost</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
           <tr v-if="loading">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="7">Loading…</td>
+            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="8">Loading…</td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="7">
+            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="8">
               No usage recorded yet for this filter.
             </td>
           </tr>
@@ -279,6 +357,7 @@ async function recalculate(scope: 'selected' | 'filter') {
                 pricing outdated
               </span>
             </td>
+            <td class="td">{{ row.provider ?? '—' }}</td>
             <td class="td text-right">{{ formatTokens(row.tokens.total) }}</td>
             <td class="td text-right">
               {{ formatCost(row.estimatedCostUsd, row.currency ?? 'USD') }}

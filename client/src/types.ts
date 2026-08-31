@@ -48,6 +48,7 @@ export interface UsageLogRow {
   projectLabel: string | null;
   promptDatetime: string;
   model: string | null;
+  provider: string | null;
   tokens: TokenCounts;
   estimatedCostUsd: number | null;
   currency: string | null;
@@ -81,6 +82,11 @@ export interface ModelPricingView {
 export interface ModelsListResponse {
   models: ModelPricingView[];
   catalog: string[];
+}
+
+export interface ProviderPricingView {
+  provider: string;
+  pricingDisabled: boolean;
 }
 
 export interface AiProviderView {

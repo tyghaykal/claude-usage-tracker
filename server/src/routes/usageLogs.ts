@@ -4,11 +4,12 @@ import { z } from 'zod';
 import type { TtlCache } from '../cache.js';
 import type { Config } from '../config.js';
 import { notFound } from '../errors.js';
-import { asyncHandler, objectIdSchema, validate, validated } from '../middleware.js';
+import { asyncHandler, objectIdSchema, requireAdmin, validate, validated } from '../middleware.js';
 import { UsageLog, type UsageLogDoc } from '../models.js';
 import {
   hasPricedRates,
   isPricingOutdated,
+  isProviderPricingDisabled,
   loadPricingMap,
   priceTokens,
   resolvePricing,
@@ -31,11 +32,21 @@ const listQuerySchema = filterSchema.extend({
 });
 
 const idParams = z.object({ id: objectIdSchema });
+const providerUpdateSchema = z.object({ provider: z.string().trim().min(1).max(200) });
 
 /** FR-12 accepts either an explicit selection or "everything matching this filter". */
 const recalculateSchema = z.union([
   z.object({ ids: z.array(objectIdSchema).min(1).max(10_000) }),
   z.object({ filter: filterSchema }),
+]);
+
+/** Same "ids or filter" shape as recalculateSchema, plus the value to set. */
+const bulkProviderSchema = z.union([
+  z.object({
+    ids: z.array(objectIdSchema).min(1).max(10_000),
+    provider: z.string().trim().min(1).max(200),
+  }),
+  z.object({ filter: filterSchema, provider: z.string().trim().min(1).max(200) }),
 ]);
 
 /** Turns the shared filter shape into a Mongo query. */
@@ -66,6 +77,7 @@ const listRow = (log: UsageLogDoc, outdated: boolean) => ({
   projectLabel: log.projectLabel,
   promptDatetime: log.promptDatetime,
   model: log.modelId,
+  provider: log.provider,
   tokens: log.tokens,
   estimatedCostUsd: log.estimatedCostUsd,
   currency: log.pricingSnapshot?.currency ?? null,
@@ -148,6 +160,25 @@ export function usageLogRoutes(config: Config, cache: TtlCache, broadcaster: Bro
 
       let updated = 0;
       for (const log of logs) {
+        // A provider with pricing disabled always recalculates to null —
+        // unlike an unpriced model, this is a deliberate "don't estimate this"
+        // rather than "we don't know yet", so it does get to blank out a
+        // figure that was already there.
+        const providerDisabled = await isProviderPricingDisabled(
+          log.provider,
+          cache,
+          config.PRICING_CACHE_TTL_MS,
+        );
+        if (providerDisabled) {
+          if (log.estimatedCostUsd === null && log.pricingSnapshot === null) continue;
+          log.estimatedCostUsd = null;
+          log.pricingSnapshot = null;
+          log.recalculatedAt = new Date();
+          await log.save();
+          updated += 1;
+          continue;
+        }
+
         const current = resolvePricing(pricing, log.modelId);
         // A model we still have no price for is left exactly as it was —
         // recalculation never blanks out a figure it cannot improve on.
@@ -164,6 +195,57 @@ export function usageLogRoutes(config: Config, cache: TtlCache, broadcaster: Bro
       cache.invalidatePrefix('dashboard:');
       if (updated > 0) broadcaster.emit({ type: 'data-changed' });
       res.json({ total: logs.length, updated, skipped: logs.length - updated });
+    }),
+  );
+
+  /**
+   * Bulk version of PATCH /:id/provider — an explicit selection or everything
+   * matching a filter, same "ids or filter" shape as /recalculate-cost.
+   * Deliberately does not touch cost; run recalculate-cost afterwards if the
+   * newly-tagged provider has pricing disabled.
+   */
+  router.post(
+    '/set-provider',
+    requireAdmin,
+    validate(bulkProviderSchema),
+    asyncHandler(async (req, res) => {
+      const body = req.body as z.infer<typeof bulkProviderSchema>;
+      const { provider } = body;
+      const mongoQuery: FilterQuery<UsageLogDoc> =
+        'ids' in body ? { _id: { $in: body.ids } } : buildFilterQuery(body.filter);
+
+      const result = await UsageLog.updateMany(mongoQuery, { $set: { provider } }).exec();
+      if (result.modifiedCount > 0) broadcaster.emit({ type: 'data-changed' });
+      res.json({ matched: result.matchedCount, updated: result.modifiedCount });
+    }),
+  );
+
+  /**
+   * Tags a log with a `provider` — mainly for records ingested before the
+   * plugin sent this field. Same "admin corrects an existing record" shape
+   * as /projects/rename, but scoped to one log rather than a shared entity:
+   * unlike a project name, a provider isn't unique-keyed, so there's no
+   * history to merge. Deliberately does not touch cost — recalculate-cost
+   * already accounts for the provider now being set (or changed).
+   */
+  router.patch(
+    '/:id/provider',
+    requireAdmin,
+    validate(idParams, 'params'),
+    validate(providerUpdateSchema),
+    asyncHandler(async (req, res) => {
+      const { id } = validated<z.infer<typeof idParams>>(req, 'params');
+      const { provider } = req.body as z.infer<typeof providerUpdateSchema>;
+      const log = await UsageLog.findById(id).exec();
+      if (!log) throw notFound('Usage log not found');
+
+      log.provider = provider;
+      await log.save();
+
+      const pricing = await pricingMap();
+      res.json({
+        log: detail(log, isPricingOutdated(log.pricingSnapshot, resolvePricing(pricing, log.modelId))),
+      });
     }),
   );
 

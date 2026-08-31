@@ -14,6 +14,7 @@ import { ingestRoutes } from './routes/ingest.js';
 import { meRoutes } from './routes/me.js';
 import { modelPricingRoutes, type ModelPricingDeps } from './routes/modelPricing.js';
 import { projectRoutes } from './routes/projects.js';
+import { providerPricingRoutes } from './routes/providerPricing.js';
 import { issueWsTicket, createBroadcaster, type Broadcaster } from './realtime.js';
 import { tokenRoutes } from './routes/tokens.js';
 import { usageLogRoutes } from './routes/usageLogs.js';
@@ -62,6 +63,7 @@ export function createApp(config: Config, deps: AppDeps = {}): BuiltApp {
   app.use('/api/tokens', auth, tokenRoutes());
   app.use('/api/usage-logs', auth, usageLogRoutes(config, cache, broadcaster));
   app.use('/api/models', auth, modelPricingRoutes(config, cache, deps));
+  app.use('/api/provider-pricing', auth, providerPricingRoutes(cache));
   app.use('/api/projects', auth, projectRoutes(cache, broadcaster));
   app.use('/api/dashboard', auth, dashboardRoutes(config, cache));
 

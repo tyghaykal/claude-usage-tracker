@@ -124,6 +124,10 @@ export interface UsageLogDoc extends Document<Types.ObjectId> {
   modelId: string | null;
   /** The plugin's client-supplied `usageUser` label. Display only — never auth. */
   userLabel: string | null;
+  /** The payload's `provider`: `claude-session`, or the scheme+host of a
+   *  custom `ANTHROPIC_BASE_URL`. Null on logs ingested before this field
+   *  existed, or admin-assignable afterwards (see routes/usageLogs.ts). */
+  provider: string | null;
   tokens: TokenCounts;
   estimatedCostUsd: number | null;
   pricingSnapshot: PricingSnapshot | null;
@@ -158,6 +162,7 @@ const usageLogSchema = new Schema<UsageLogDoc>(
     sessionId: { type: String, required: true },
     modelId: { type: String, default: null, index: true },
     userLabel: { type: String, default: null },
+    provider: { type: String, default: null, trim: true, index: true },
     tokens: {
       input: { type: Number, required: true },
       cache_read: { type: Number, required: true },
@@ -205,6 +210,33 @@ const aiProviderConfigSchema = new Schema<AiProviderConfigDoc>(
 export const AiProviderConfig: Model<AiProviderConfigDoc> = model<AiProviderConfigDoc>(
   'AiProviderConfig',
   aiProviderConfigSchema,
+);
+
+/* ------------------------------------------------------ ProviderPricingConfig */
+
+/** Whether cost estimation is skipped for a `UsageLog.provider` value.
+ *  Rows are created lazily — a provider with no doc here simply prices
+ *  normally, same as a model with no `ModelPricing` row. */
+export interface ProviderPricingConfigDoc extends Document<Types.ObjectId> {
+  provider: string;
+  pricingDisabled: boolean;
+  updatedBy: Types.ObjectId | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const providerPricingConfigSchema = new Schema<ProviderPricingConfigDoc>(
+  {
+    provider: { type: String, required: true, unique: true, trim: true },
+    pricingDisabled: { type: Boolean, default: true },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  },
+  { timestamps: true },
+);
+
+export const ProviderPricingConfig: Model<ProviderPricingConfigDoc> = model<ProviderPricingConfigDoc>(
+  'ProviderPricingConfig',
+  providerPricingConfigSchema,
 );
 
 /* ----------------------------------------------------------------- Project */

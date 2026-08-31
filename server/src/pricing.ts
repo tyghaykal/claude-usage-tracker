@@ -2,6 +2,7 @@ import type { TtlCache } from './cache.js';
 import { CacheKeys } from './cache.js';
 import {
   ModelPricing,
+  ProviderPricingConfig,
   type ModelPricingDoc,
   type PricingSnapshot,
   type TokenCounts,
@@ -161,6 +162,29 @@ export function invalidatePricingCache(cache: TtlCache): void {
   cache.invalidatePrefix(CacheKeys.pricing);
   // Dashboard totals are derived from cost, so stale pricing means stale charts.
   cache.invalidatePrefix(CacheKeys.dashboard);
+}
+
+/**
+ * Is cost estimation turned off for this provider? Cached the same way as
+ * `lookupPricing` — the ingestion hot path checks this on every prompt.
+ * A provider with no config row at all prices normally (default false).
+ */
+export async function isProviderPricingDisabled(
+  provider: string | null | undefined,
+  cache: TtlCache,
+  ttlMs: number,
+): Promise<boolean> {
+  if (!provider) return false;
+  const key = `${CacheKeys.providerPricing}${provider}`;
+  const cached = cache.get<boolean>(key);
+  if (cached !== undefined) return cached;
+  const found = await ProviderPricingConfig.findOne({ provider }).exec();
+  return cache.set(key, found?.pricingDisabled ?? false, ttlMs);
+}
+
+/** Drops every cached provider-pricing entry. Called after a toggle. */
+export function invalidateProviderPricingCache(cache: TtlCache): void {
+  cache.invalidatePrefix(CacheKeys.providerPricing);
 }
 
 /**

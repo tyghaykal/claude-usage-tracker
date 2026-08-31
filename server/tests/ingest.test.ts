@@ -1,9 +1,9 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiToken, ModelPricing, UsageLog, User } from '../src/models.js';
+import { ApiToken, ModelPricing, ProviderPricingConfig, UsageLog, User } from '../src/models.js';
 import { createBroadcaster } from '../src/realtime.js';
 import { touchToken } from '../src/routes/ingest.js';
-import { buildApp, makeApiToken, makePricing, makeUser, usagePayload } from './helpers.js';
+import { buildApp, makeApiToken, makePricing, makeUser, makeUserAndLogin, usagePayload } from './helpers.js';
 
 const { app, cache } = buildApp();
 
@@ -322,6 +322,195 @@ describe('POST /api/usage — storage', () => {
       .send(usagePayload());
 
     expect(listener).toHaveBeenCalledWith({ type: 'data-changed' });
+  });
+});
+
+describe('POST /api/usage — provider', () => {
+  it('accepts a payload with no provider field at all', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    expect((await post(token, usagePayload())).status).toBe(204);
+    expect((await UsageLog.findOne().exec())!.provider).toBeNull();
+  });
+
+  it('stores claude-session as reported', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await post(token, usagePayload({ provider: 'claude-session' }));
+    expect((await UsageLog.findOne().exec())!.provider).toBe('claude-session');
+  });
+
+  it('stores a custom ANTHROPIC_BASE_URL host as reported', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await post(token, usagePayload({ provider: 'https://api.amanai.dev' }));
+    expect((await UsageLog.findOne().exec())!.provider).toBe('https://api.amanai.dev');
+  });
+
+  it('skips pricing entirely for a provider marked pricing-disabled', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await makePricing('claude-sonnet-5');
+    await ProviderPricingConfig.create({ provider: 'https://api.amanai.dev', pricingDisabled: true });
+
+    await post(token, usagePayload({ provider: 'https://api.amanai.dev' }));
+
+    const log = await UsageLog.findOne().exec();
+    expect(log!.provider).toBe('https://api.amanai.dev');
+    expect(log!.estimatedCostUsd).toBeNull();
+    expect(log!.pricingSnapshot).toBeNull();
+    // Token counts are still exact — only the cost is skipped.
+    expect(log!.tokens.total).toBe(3800);
+  });
+
+  it('still prices a provider with no config row, or one explicitly re-enabled', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await makePricing('claude-sonnet-5');
+    await ProviderPricingConfig.create({ provider: 'claude-session', pricingDisabled: false });
+
+    await post(token, usagePayload({ provider: 'claude-session' }));
+
+    const log = await UsageLog.findOne().exec();
+    expect(log!.estimatedCostUsd).toBeCloseTo(0.009975, 10);
+  });
+
+  it('caches the disabled flag so repeat ingests do not re-query per prompt', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await makePricing('claude-sonnet-5');
+    await ProviderPricingConfig.create({ provider: 'https://api.amanai.dev', pricingDisabled: true });
+    cache.clear();
+
+    await post(token, usagePayload({ provider: 'https://api.amanai.dev' }));
+    // Config removed from the DB — a cached hit is the only way the second
+    // request can still know pricing is disabled for this provider.
+    await ProviderPricingConfig.deleteMany({});
+    await post(token, usagePayload({ provider: 'https://api.amanai.dev' }));
+
+    const logs = await UsageLog.find().exec();
+    expect(logs).toHaveLength(2);
+    expect(logs[0]!.estimatedCostUsd).toBeNull();
+    expect(logs[1]!.estimatedCostUsd).toBeNull();
+  });
+});
+
+describe('POST /api/usage — project name resolution after a rename', () => {
+  it('redirects a report still using the pre-rename name to the current one', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await post(token, usagePayload({ project: 'ai-usage' }));
+
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'ai-usage', newName: 'ai-usage-tracker' });
+
+    // A late report — the reporter still has the old cwd-derived name cached.
+    await post(token, usagePayload({ project: 'ai-usage' }));
+
+    const logs = await UsageLog.find().sort({ createdAt: 1 }).exec();
+    expect(logs.map((l) => l.project)).toEqual(['ai-usage-tracker', 'ai-usage-tracker']);
+  });
+
+  it('follows a multi-hop rename chain to the final name', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'client', newName: 'ai-usage' });
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'ai-usage', newName: 'ai-usage-tracker' });
+
+    await post(token, usagePayload({ project: 'client' }));
+
+    expect((await UsageLog.findOne().exec())!.project).toBe('ai-usage-tracker');
+  });
+
+  it('leaves a project name that was never renamed untouched', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await post(token, usagePayload({ project: 'brand-new-project' }));
+    expect((await UsageLog.findOne().exec())!.project).toBe('brand-new-project');
+  });
+
+  it('keeps the raw payload verbatim even though the stored project is resolved', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await post(token, usagePayload({ project: 'ai-usage' }));
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'ai-usage', newName: 'ai-usage-tracker' });
+
+    await post(token, usagePayload({ project: 'ai-usage' }));
+
+    const log = await UsageLog.findOne({ project: 'ai-usage-tracker' })
+      .sort({ createdAt: -1 })
+      .exec();
+    expect(log!.rawPayload!['project']).toBe('ai-usage');
+  });
+});
+
+describe('POST /api/usage — project_label resolution after a rename', () => {
+  it('resolves a label that mirrors a since-renamed project, on every report', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'ai-usage', newName: 'ai-usage-tracker' });
+
+    // The reporter has no idea the rename happened — it keeps sending both
+    // fields as the old name, report after report.
+    await post(token, usagePayload({ project: 'ai-usage', project_label: 'ai-usage' }));
+    await post(token, usagePayload({ project: 'ai-usage', project_label: 'ai-usage' }));
+
+    const logs = await UsageLog.find().sort({ createdAt: 1 }).exec();
+    expect(logs.map((l) => [l.project, l.projectLabel])).toEqual([
+      ['ai-usage-tracker', 'ai-usage-tracker'],
+      ['ai-usage-tracker', 'ai-usage-tracker'],
+    ]);
+  });
+
+  it('leaves a label that never matched the project field untouched', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await request(app)
+      .post('/api/projects/rename')
+      .set('Authorization', auth)
+      .send({ name: 'ai-usage', newName: 'ai-usage-tracker' });
+
+    await post(token, usagePayload({ project: 'ai-usage', project_label: 'Client X' }));
+
+    const log = await UsageLog.findOne().exec();
+    expect(log).toMatchObject({ project: 'ai-usage-tracker', projectLabel: 'Client X' });
+  });
+
+  it('stores a mirrored label as-is when the project was never renamed', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    await post(token, usagePayload({ project: 'brand-new', project_label: 'brand-new' }));
+
+    const log = await UsageLog.findOne().exec();
+    expect(log).toMatchObject({ project: 'brand-new', projectLabel: 'brand-new' });
+  });
+
+  it('stores no label as no label, unaffected by resolution', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+    const { project_label: _drop, ...noLabel } = usagePayload();
+    await post(token, noLabel);
+
+    expect((await UsageLog.findOne().exec())!.projectLabel).toBeNull();
   });
 });
 

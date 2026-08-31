@@ -12,6 +12,25 @@ const renameSchema = z.object({
   newName: z.string().trim().min(1).max(200),
 });
 
+/**
+ * Resolves a possibly-stale project name to its current canonical one. A
+ * report can arrive with an old name after a rename — the reporting client
+ * (e.g. a plugin caching a cwd-derived name) has no idea the name changed
+ * server-side — so without this, every such report would silently refound
+ * the old project instead of joining the renamed one (FR-9 follow-up).
+ *
+ * ponytail: a live query per ingest, no caching. Renames are rare and the
+ * Project collection is small; revisit if ingest volume ever makes this a
+ * bottleneck, the way pricing lookups already are cached.
+ */
+export async function resolveProjectName(name: string): Promise<string> {
+  if (await Project.exists({ name })) return name;
+  const renamed = await Project.findOne({ 'history.from': name })
+    .sort({ 'history.changedAt': -1 })
+    .exec();
+  return renamed?.name ?? name;
+}
+
 const publicProject = (name: string, history: ProjectDoc['history']) => ({
   name,
   history: history.map((entry) => ({
@@ -71,6 +90,15 @@ export function projectRoutes(cache: TtlCache, broadcaster: Broadcaster): Router
       }
 
       await UsageLog.updateMany({ project: name }, { $set: { project: newName } }).exec();
+      // A label that was only ever mirroring the technical name (the
+      // reporter's default when no custom usageProjectLabel is set) should
+      // track the rename too, or the table keeps showing the old name
+      // forever. A genuinely distinct custom label (e.g. "Client X") never
+      // matched `name` in the first place, so it's untouched here.
+      await UsageLog.updateMany(
+        { project: newName, projectLabel: name },
+        { $set: { projectLabel: newName } },
+      ).exec();
 
       cache.invalidatePrefix('dashboard:');
       broadcaster.emit({ type: 'data-changed' });
