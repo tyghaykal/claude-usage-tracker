@@ -8,7 +8,14 @@
     </div>
 
     <section class="card space-y-3">
-      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.3 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.4 <span class="font-normal text-slate-400 dark:text-slate-500">— current</span></h2>
+      <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Fixed a build-breaking type error in cost recalculation (<code class="rounded bg-slate-100 px-1 dark:bg-slate-700">POST /api/usage-logs/recalculate-cost</code>) introduced by a stricter pricing lookup type.</li>
+      </ul>
+    </section>
+
+    <section class="card space-y-3">
+      <h2 class="font-semibold text-slate-900 dark:text-slate-100">v0.1.3</h2>
       <ul class="list-disc space-y-1.5 pl-5 text-sm text-slate-600 dark:text-slate-400">
         <li>Admins can export the entire database to a zip file, and restore it later by uploading that zip back — see the new Backup page.</li>
         <li>The navigation collapses into a mobile menu on small screens, and a few narrow-viewport layout overflows were fixed.</li>

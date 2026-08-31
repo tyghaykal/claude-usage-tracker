@@ -112,7 +112,7 @@ export function resolvePricing(
 /** Prices a set of token counts, or returns nulls when the model is unknown. */
 export function priceTokens(
   tokens: TokenCounts,
-  pricing: ModelPricingDoc | null,
+  pricing: ModelPricingDoc | null | undefined,
 ): PricedResult {
   if (!hasPricedRates(pricing)) return { estimatedCostUsd: null, pricingSnapshot: null };
   const snapshot = snapshotFrom(pricing!);
