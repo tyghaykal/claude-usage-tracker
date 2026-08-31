@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import ToastStack from './components/ToastStack.vue';
+import { onClickOutside } from './composables/onClickOutside';
 import { useTheme } from './composables/useTheme';
 import { useAuthStore } from './stores/auth';
 
@@ -13,26 +14,37 @@ const { theme, toggle: toggleTheme } = useTheme();
 
 const chromeless = computed(() => route.name === 'login' || route.name === 'setup');
 
-const links = computed(() => [
+const mainLinks = [
   { name: 'dashboard', label: 'Dashboard' },
   { name: 'logs', label: 'Usage logs' },
   { name: 'models', label: 'Model pricing' },
   { name: 'tokens', label: 'API tokens' },
-  ...(auth.isAdmin
-    ? [
-        { name: 'users', label: 'Users' },
-        { name: 'audit-log', label: 'Audit log' },
-        { name: 'ai-providers', label: 'AI providers' },
-        { name: 'backup', label: 'Backup' },
-      ]
-    : []),
-]);
+];
+// Admin-only surfaces tucked behind one "Admin" dropdown so the top bar
+// doesn't grow a pill per feature.
+const adminLinks = [
+  { name: 'users', label: 'Users' },
+  { name: 'audit-log', label: 'Audit log' },
+  { name: 'ai-providers', label: 'AI providers' },
+  { name: 'backup', label: 'Backup' },
+];
+// The mobile menu stays a single flat list — collapsing behind a toggle
+// already solves its space problem, so no need for a nested dropdown there.
+const links = computed(() => [...mainLinks, ...(auth.isAdmin ? adminLinks : [])]);
+const isAdminRoute = computed(() => adminLinks.some((l) => l.name === route.name));
+
+const mobileMenuOpen = ref(false);
+const adminMenuOpen = ref(false);
+const adminMenuEl = ref<HTMLElement | null>(null);
+onClickOutside(adminMenuEl, () => {
+  adminMenuOpen.value = false;
+});
 
 // A row of nav pills for every link doesn't fit a phone width — collapsed
 // behind this toggle below `sm`, and closed again whenever the route changes.
-const mobileMenuOpen = ref(false);
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false;
+  adminMenuOpen.value = false;
 });
 
 async function signOut() {
@@ -59,9 +71,9 @@ async function signOut() {
         <RouterLink :to="{ name: 'dashboard' }" class="text-sm font-semibold text-slate-900 dark:text-slate-100">
           Claude Usage Tracker
         </RouterLink>
-        <nav class="hidden flex-wrap gap-1 sm:flex">
+        <nav class="hidden flex-wrap items-center gap-1 sm:flex">
           <RouterLink
-            v-for="link in links"
+            v-for="link in mainLinks"
             :key="link.name"
             :to="{ name: link.name }"
             class="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
@@ -69,6 +81,33 @@ async function signOut() {
           >
             {{ link.label }}
           </RouterLink>
+          <div v-if="auth.isAdmin" ref="adminMenuEl" class="relative">
+            <button
+              type="button"
+              class="rounded-md px-3 py-1.5 text-sm"
+              :class="isAdminRoute
+                ? 'bg-slate-900 text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'"
+              :aria-expanded="adminMenuOpen"
+              @click="adminMenuOpen = !adminMenuOpen"
+            >
+              Admin ▾
+            </button>
+            <div
+              v-if="adminMenuOpen"
+              class="absolute left-0 top-full z-10 mt-1 w-44 rounded-md border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+            >
+              <RouterLink
+                v-for="link in adminLinks"
+                :key="link.name"
+                :to="{ name: link.name }"
+                class="block px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                active-class="bg-slate-100 text-slate-900 dark:bg-slate-700 dark:text-slate-100"
+              >
+                {{ link.label }}
+              </RouterLink>
+            </div>
+          </div>
         </nav>
         <div class="ml-auto hidden items-center gap-3 sm:flex">
           <RouterLink
@@ -137,7 +176,7 @@ async function signOut() {
     </main>
 
     <footer class="mx-auto flex max-w-7xl justify-center gap-4 px-4 pb-6 text-xs text-slate-400 dark:text-slate-500">
-      <span>v0.2.0</span>
+      <span>v0.3.0</span>
       <RouterLink :to="{ name: 'changelog' }" class="hover:text-slate-600 dark:hover:text-slate-300">Changelog</RouterLink>
       <RouterLink :to="{ name: 'privacy' }" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy &amp; data</RouterLink>
     </footer>

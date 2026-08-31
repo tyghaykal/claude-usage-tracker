@@ -17,6 +17,7 @@ const createSchema = z.object({
 const updateSchema = z
   .object({
     name: z.string().min(1).max(120).optional(),
+    email: z.string().email().optional(),
     role: z.enum(['admin', 'user']).optional(),
     password: z.string().min(8, 'must be at least 8 characters').optional(),
   })
@@ -63,7 +64,7 @@ export function userRoutes(): Router {
     validate(updateSchema),
     asyncHandler(async (req, res) => {
       const { id } = validated<z.infer<typeof idParams>>(req, 'params');
-      const { name, role, password } = req.body as z.infer<typeof updateSchema>;
+      const { name, email, role, password } = req.body as z.infer<typeof updateSchema>;
 
       const user = await User.findById(id).exec();
       if (!user) throw notFound('User not found');
@@ -77,9 +78,18 @@ export function userRoutes(): Router {
         if (otherAdmins === 0) throw badRequest('Cannot demote the last remaining admin');
       }
 
+      const normalizedEmail = email?.toLowerCase();
+      if (normalizedEmail !== undefined && normalizedEmail !== user.email) {
+        if (await User.exists({ email: normalizedEmail, _id: { $ne: user._id } })) {
+          throw conflict('A user with that email already exists');
+        }
+      }
+
       const previousRole = user.role;
+      const previousEmail = user.email;
 
       if (name !== undefined) user.name = name;
+      if (email !== undefined) user.email = email;
       if (role !== undefined) user.role = role;
       if (password !== undefined) user.passwordHash = await hashPassword(password);
 
@@ -88,6 +98,9 @@ export function userRoutes(): Router {
       const target = { id: user._id, name: user.name, email: user.email };
       if (role !== undefined && role !== previousRole) {
         await recordAudit('user.role_changed', req.user!, target, { from: previousRole, to: role });
+      }
+      if (email !== undefined && user.email !== previousEmail) {
+        await recordAudit('user.email_changed', req.user!, target, { from: previousEmail, to: user.email });
       }
       if (password !== undefined) {
         await recordAudit('user.password_reset', req.user!, target);

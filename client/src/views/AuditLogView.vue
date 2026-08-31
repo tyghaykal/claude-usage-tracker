@@ -14,6 +14,7 @@ const actionLabels: Record<string, string> = {
   'user.created': 'User created',
   'user.deleted': 'User deleted',
   'user.role_changed': 'Role changed',
+  'user.email_changed': 'Email changed',
   'user.password_reset': 'Password reset by admin',
   'user.password_changed': 'Password changed',
 };
@@ -22,6 +23,7 @@ const actionColors: Record<string, string> = {
   'user.created': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   'user.deleted': 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
   'user.role_changed': 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  'user.email_changed': 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   'user.password_reset': 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
   'user.password_changed': 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
 };
@@ -30,7 +32,7 @@ const actionColors: Record<string, string> = {
 function describe(row: AuditLogEntry): string {
   const meta = row.meta;
   if (!meta) return '—';
-  if (row.action === 'user.role_changed' && meta.from && meta.to) {
+  if ((row.action === 'user.role_changed' || row.action === 'user.email_changed') && meta.from && meta.to) {
     return `${meta.from} → ${meta.to}`;
   }
   if (row.action === 'user.created' && meta.role) {

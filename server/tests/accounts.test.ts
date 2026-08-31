@@ -184,6 +184,33 @@ describe('/api/users (admin only)', () => {
     expect(await verifyPassword('reset-by-admin-1', updated!.passwordHash)).toBe(true);
   });
 
+  it('updates the email', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    const target = await makeUser({ email: 'before@example.com' });
+
+    const res = await request(app)
+      .patch(`/api/users/${target._id.toString()}`)
+      .set('Authorization', auth)
+      .send({ email: 'After@Example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe('after@example.com');
+  });
+
+  it('rejects changing the email to one already in use', async () => {
+    const { auth } = await makeUserAndLogin(app, { role: 'admin' });
+    await makeUser({ email: 'taken@example.com' });
+    const target = await makeUser({ email: 'mine@example.com' });
+
+    const res = await request(app)
+      .patch(`/api/users/${target._id.toString()}`)
+      .set('Authorization', auth)
+      .send({ email: 'TAKEN@example.com' });
+
+    expect(res.status).toBe(409);
+    expect((await User.findById(target._id).exec())!.email).toBe('mine@example.com');
+  });
+
   it('refuses to demote the last remaining admin', async () => {
     const { user, auth } = await makeUserAndLogin(app, { role: 'admin' });
     const res = await request(app)

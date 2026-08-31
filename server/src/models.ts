@@ -254,6 +254,7 @@ export type AuditAction =
   | 'user.created'
   | 'user.deleted'
   | 'user.role_changed'
+  | 'user.email_changed'
   | 'user.password_reset'
   | 'user.password_changed';
 

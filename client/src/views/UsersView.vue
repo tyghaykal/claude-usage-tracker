@@ -15,6 +15,8 @@ const notice = ref('');
 
 const form = reactive({ name: '', email: '', password: '', role: 'user' as Role });
 const resetting = reactive({ id: '', password: '' });
+const editing = reactive({ id: '', name: '', email: '' });
+const editError = ref('');
 
 async function load() {
   users.value = (await api<{ users: User[] }>('/users')).users;
@@ -57,6 +59,28 @@ async function remove(user: User) {
     await load();
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not delete the user';
+  }
+}
+
+function startEdit(user: User) {
+  editing.id = user.id;
+  editing.name = user.name;
+  editing.email = user.email;
+  editError.value = '';
+}
+
+async function saveEdit() {
+  editError.value = '';
+  try {
+    await api(`/users/${editing.id}`, {
+      method: 'PATCH',
+      body: { name: editing.name, email: editing.email },
+    });
+    notify('User updated');
+    editing.id = '';
+    await load();
+  } catch (err) {
+    editError.value = err instanceof Error ? err.message : 'Could not update the user';
   }
 }
 
@@ -142,6 +166,7 @@ async function resetPassword() {
             </td>
             <td class="td whitespace-nowrap">{{ formatDateTime(u.createdAt) }}</td>
             <td class="td text-right space-x-2 whitespace-nowrap">
+              <button class="btn-secondary" @click="startEdit(u)">Edit</button>
               <button class="btn-secondary" @click="resetting.id = u.id">Reset password</button>
               <button
                 class="btn-secondary text-red-600 dark:text-red-400"
@@ -161,6 +186,29 @@ async function resetPassword() {
       The last remaining admin cannot be demoted. If every admin is locked out, run
       <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">cli reset-password</code> on the server.
     </p>
+
+    <div
+      v-if="editing.id"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      @click.self="editing.id = ''"
+    >
+      <form class="card w-full max-w-sm space-y-3" @submit.prevent="saveEdit">
+        <h2 class="text-sm font-semibold">Edit user</h2>
+        <p v-if="editError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ editError }}</p>
+        <div>
+          <label class="label" for="e-name">Name</label>
+          <input id="e-name" v-model="editing.name" class="input" required />
+        </div>
+        <div>
+          <label class="label" for="e-email">Email</label>
+          <input id="e-email" v-model="editing.email" class="input" type="email" required />
+        </div>
+        <div class="flex gap-2">
+          <button class="btn-primary" type="submit">Save</button>
+          <button class="btn-secondary" type="button" @click="editing.id = ''">Cancel</button>
+        </div>
+      </form>
+    </div>
 
     <div
       v-if="resetting.id"
