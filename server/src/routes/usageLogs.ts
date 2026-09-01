@@ -80,6 +80,7 @@ const listRow = (log: UsageLogDoc, outdated: boolean) => ({
   provider: log.provider,
   tokens: log.tokens,
   estimatedCostUsd: log.estimatedCostUsd,
+  amanaiCredits: log.amanaiCredits ?? null,
   currency: log.pricingSnapshot?.currency ?? null,
   pricingOutdated: outdated,
 });

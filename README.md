@@ -176,6 +176,35 @@ claude-sonnet-5          9r/claude-sonnet-5
 amanai/claude-sonnet-5   9r/some-combo-name
 ```
 
+### amanai credits (optional)
+
+To attribute the **exact amanai credit cost** of requests that go through amanai, attach your
+amanai API key to an **API token** in the dashboard (Tokens → set amanai key). amanai's usage
+endpoint (`https://api.amanai.dev/v1/usage`) reports the real per-request `credits`, so this is
+**not an estimate** — it is the exact figure, stored on each matching record as `amanaiCredits`:
+
+```jsonc
+{
+  "amanaiCredits": 143783
+}
+```
+
+The key is tied to the **logged-in user's API token**: only requests made with that token are
+attributed against that amanai account's usage log. The key is encrypted at rest
+(`SETTINGS_ENCRYPTION_KEY`) and never serialised back to any response — the token API exposes
+only `hasAmanaiKey: true/false`.
+
+- **Opt-in, per token.** A token with no amanai key does **no amanai credit calculation** —
+  behaviour is identical to before. Clearing the key disables it for that token.
+- **Only for amanai models.** Attribution runs only when the payload's `model` starts with
+  `amanai/` (e.g. `amanai/deepseek-v4-flash`). Other models are untouched.
+- **Non-blocking.** Attribution happens in the background after ingestion; the request is never
+  delayed by the network. If the key is invalid, amanai is down, or the usage-log window has
+  rolled past the request, `amanaiCredits` stays `null` (the USD `estimatedCostUsd` is
+  unaffected).
+- **Exact match.** A log is matched to an amanai usage entry by model + token counts
+  (`input`, `output`, `cache_read`), so credits attribute correctly.
+
 Whatever string arrives in the payload's `model` field is what you enter on the pricing page.
 
 ### AI-assisted pricing lookup (optional)

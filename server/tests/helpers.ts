@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp, type AppDeps } from '../src/app.js';
 import type { TtlCache } from '../src/cache.js';
 import { loadConfig, type Config } from '../src/config.js';
-import { generateApiToken, hashPassword } from '../src/crypto.js';
+import { encryptSecret, generateApiToken, hashPassword } from '../src/crypto.js';
 import { ApiToken, ModelPricing, User, type Role } from '../src/models.js';
 import type { Broadcaster } from '../src/realtime.js';
 
@@ -73,7 +73,10 @@ export async function makeUserAndLogin(
   return { user, token, auth: `Bearer ${token}` };
 }
 
-export async function makeApiToken(userId: unknown, opts: { revoked?: boolean } = {}) {
+export async function makeApiToken(
+  userId: unknown,
+  opts: { revoked?: boolean; amanaiKey?: string } = {},
+) {
   const { token, tokenHash, tokenPrefix } = generateApiToken();
   const doc = await ApiToken.create({
     userId,
@@ -81,6 +84,11 @@ export async function makeApiToken(userId: unknown, opts: { revoked?: boolean } 
     tokenHash,
     tokenPrefix,
     revoked: opts.revoked ?? false,
+    // Encrypt with the test SETTINGS_ENCRYPTION_KEY so a token can carry an
+    // amanai key for the ingestion attribution tests.
+    amanaiKeyEnc: opts.amanaiKey
+      ? encryptSecret(opts.amanaiKey, TEST_ENV.SETTINGS_ENCRYPTION_KEY)
+      : null,
   });
   return { token, doc };
 }

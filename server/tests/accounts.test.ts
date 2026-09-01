@@ -303,6 +303,34 @@ describe('/api/users (admin only)', () => {
 });
 
 describe('/api/tokens', () => {
+  it('sets and clears the amanai key on a token without exposing it', async () => {
+    const { auth } = await makeUserAndLogin(app);
+    const created = await request(app).post('/api/tokens').set('Authorization', auth).send({});
+    const id = created.body.apiToken.id as string;
+
+    // Set it.
+    const setRes = await request(app)
+      .post(`/api/tokens/${id}/amanai-key`)
+      .set('Authorization', auth)
+      .send({ amanaiKey: 'sk-amanai-test' });
+    expect(setRes.status).toBe(200);
+    expect(setRes.body.apiToken.hasAmanaiKey).toBe(true);
+    // The key itself is never returned.
+    expect(JSON.stringify(setRes.body)).not.toContain('sk-amanai-test');
+    // Stored encrypted.
+    const stored = await ApiToken.findById(id).exec();
+    expect(stored?.amanaiKeyEnc).toBeTruthy();
+    expect(stored?.amanaiKeyEnc).not.toContain('sk-amanai-test');
+
+    // Clear it.
+    const clearRes = await request(app)
+      .post(`/api/tokens/${id}/amanai-key`)
+      .set('Authorization', auth)
+      .send({ amanaiKey: '' });
+    expect(clearRes.status).toBe(200);
+    expect(clearRes.body.apiToken.hasAmanaiKey).toBe(false);
+  });
+
   it('returns the plaintext exactly once, then only a prefix', async () => {
     const { auth } = await makeUserAndLogin(app);
     const created = await request(app)

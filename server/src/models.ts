@@ -34,6 +34,11 @@ export interface ApiTokenDoc extends Document<Types.ObjectId> {
   tokenHash: string;
   tokenPrefix: string;
   revoked: boolean;
+  /** Optional amanai API key for this token, AES-256-GCM encrypted. When set,
+   *  requests made with this token attribute their exact amanai credit cost from
+   *  the live usage log. Null = no amanai credit calculation for this token.
+   *  Never serialised to any API response. */
+  amanaiKeyEnc: string | null;
   lastUsedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +51,7 @@ const apiTokenSchema = new Schema<ApiTokenDoc>(
     tokenHash: { type: String, required: true, unique: true },
     tokenPrefix: { type: String, required: true },
     revoked: { type: Boolean, default: false },
+    amanaiKeyEnc: { type: String, default: null },
     lastUsedAt: { type: Date, default: null },
   },
   { timestamps: true },
@@ -130,6 +136,10 @@ export interface UsageLogDoc extends Document<Types.ObjectId> {
   provider: string | null;
   tokens: TokenCounts;
   estimatedCostUsd: number | null;
+  /** Exact amanai credit cost, attributed from the live usage log when an
+   *  AMANAI_API_KEY is configured and a matching request is found. Null when
+   *  no key is set, the model isn't amanai, or no usage-log match was found. */
+  amanaiCredits: number | null;
   pricingSnapshot: PricingSnapshot | null;
   recalculatedAt: Date | null;
   /** The exact ingestion body, kept verbatim for debugging (FR-6 detail view). */
@@ -171,6 +181,7 @@ const usageLogSchema = new Schema<UsageLogDoc>(
       total: { type: Number, required: true },
     },
     estimatedCostUsd: { type: Number, default: null },
+    amanaiCredits: { type: Number, default: null },
     pricingSnapshot: { type: pricingSnapshotSchema, default: null },
     recalculatedAt: { type: Date, default: null },
     rawPayload: { type: Schema.Types.Mixed, default: null },

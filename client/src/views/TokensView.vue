@@ -74,6 +74,33 @@ async function remove(token: ApiTokenView) {
   await load();
 }
 
+/** The amanai key being typed for a token (by token id). Empty = clearing. */
+const amanaiInput = ref<Record<string, string>>({});
+const amanaiSaving = ref<Record<string, boolean>>({});
+const amanaiError = ref('');
+
+function setAmanaiInput(id: string, event: Event) {
+  amanaiInput.value[id] = (event.target as HTMLInputElement).value;
+}
+
+/** Save (or clear, when the input is empty) a token's amanai key. */
+async function saveAmanaiKey(token: ApiTokenView) {
+  amanaiError.value = '';
+  amanaiSaving.value[token.id] = true;
+  try {
+    await api<{ apiToken: ApiTokenView }>(`/tokens/${token.id}/amanai-key`, {
+      method: 'POST',
+      body: { amanaiKey: (amanaiInput.value[token.id] ?? '').trim() },
+    });
+    amanaiInput.value[token.id] = '';
+    await load();
+  } catch (err) {
+    amanaiError.value = err instanceof Error ? err.message : 'Could not save amanai key';
+  } finally {
+    amanaiSaving.value[token.id] = false;
+  }
+}
+
 async function copy(text: string) {
   try {
     if (!navigator.clipboard) throw new Error('Clipboard unavailable');
@@ -182,6 +209,7 @@ async function copy(text: string) {
             <th class="th">Label</th>
             <th class="th">Token</th>
             <th class="th">Status</th>
+            <th class="th">Amanai</th>
             <th class="th">Last used</th>
             <th class="th">Created</th>
             <th class="th"></th>
@@ -189,7 +217,7 @@ async function copy(text: string) {
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
           <tr v-if="tokens.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="6">No tokens yet.</td>
+            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="7">No tokens yet.</td>
           </tr>
           <tr v-for="t in tokens" :key="t.id">
             <td class="td">{{ t.label || '—' }}</td>
@@ -202,6 +230,31 @@ async function copy(text: string) {
                 {{ t.revoked ? 'revoked' : 'active' }}
               </span>
             </td>
+            <td class="td">
+              <div v-if="t.revoked" class="text-xs text-slate-400">—</div>
+              <div v-else class="flex items-center gap-2">
+                <span
+                  class="badge whitespace-nowrap"
+                  :class="t.hasAmanaiKey ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
+                >
+                  {{ t.hasAmanaiKey ? 'set' : 'none' }}
+                </span>
+                <input
+                  :value="amanaiInput[t.id] ?? ''"
+                  @input="setAmanaiInput(t.id, $event)"
+                  type="password"
+                  class="input w-40 text-xs"
+                  :placeholder="t.hasAmanaiKey ? 'new key to change' : 'amanai key'"
+                />
+                <button
+                  class="btn-secondary text-xs"
+                  :disabled="amanaiSaving[t.id]"
+                  @click="saveAmanaiKey(t)"
+                >
+                  {{ t.hasAmanaiKey ? 'Change' : 'Set' }}
+                </button>
+              </div>
+            </td>
             <td class="td whitespace-nowrap">{{ formatDateTime(t.lastUsedAt) }}</td>
             <td class="td whitespace-nowrap">{{ formatDateTime(t.createdAt) }}</td>
             <td class="td text-right">
@@ -211,6 +264,7 @@ async function copy(text: string) {
           </tr>
         </tbody>
       </table>
+      <p v-if="amanaiError" class="px-4 py-2 text-sm text-red-600 dark:text-red-400">{{ amanaiError }}</p>
     </div>
   </div>
 </template>
