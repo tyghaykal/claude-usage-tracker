@@ -47,8 +47,8 @@ node -e "const c=require('crypto');for(const k of ['JWT_SECRET','JWT_REFRESH_SEC
 docker compose up -d --build
 ```
 
-Open <http://localhost:8080>. The first visit shows a **one-time setup form** that creates the
-admin account, then closes permanently.
+Open <http://localhost:8888> (or your `WEB_PORT`). The first visit shows a **one-time setup form** that
+creates the admin account, then closes permanently.
 
 ### Applying changes
 
@@ -63,7 +63,7 @@ admin account, then closes permanently.
 
 `npm run docker:dev` runs the base compose file plus `docker-compose.dev.yml`, which swaps both
 containers to watch mode — `tsx watch` for the API, the Vite dev server for the UI — with your
-working tree mounted in. Same URL as production (`http://localhost:8080`), and the API is also
+working tree mounted in. Same URL as production (`http://localhost:8888`), and the API is also
 published directly on `:4000` for `curl`. Ctrl-C to stop; it is a foreground command so you can see
 both logs.
 

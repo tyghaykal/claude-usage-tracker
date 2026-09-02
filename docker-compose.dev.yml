@@ -35,7 +35,7 @@ services:
       # Inside the compose network the API is a service name, not localhost.
       VITE_API_PROXY_TARGET: http://api:4000
       # The browser reached us on the published port, so HMR must dial that.
-      VITE_HMR_CLIENT_PORT: ${WEB_PORT:-8080}
+      VITE_HMR_CLIENT_PORT: ${WEB_PORT:-8888}
     volumes:
       - ./client:/app/client
       - /app/client/node_modules
