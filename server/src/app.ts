@@ -60,7 +60,7 @@ export function createApp(config: Config, deps: AppDeps = {}): BuiltApp {
   // Everything below needs a logged-in user.
   const auth = requireAuth(config);
   app.use('/api/me', auth, meRoutes());
-  app.use('/api/tokens', auth, tokenRoutes());
+  app.use('/api/tokens', auth, tokenRoutes(config));
   app.use('/api/usage-logs', auth, usageLogRoutes(config, cache, broadcaster));
   app.use('/api/models', auth, modelPricingRoutes(config, cache, deps));
   app.use('/api/provider-pricing', auth, providerPricingRoutes(cache));

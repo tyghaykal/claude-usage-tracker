@@ -547,3 +547,84 @@ describe('pricing cache on the ingestion path', () => {
     expect(logs[1]!.estimatedCostUsd).toBeNull();
   });
 });
+
+describe('POST /api/usage — amanai credit attribution', () => {
+  const AMANAI_USAGE = {
+    credit_used: 123456,
+    credit_remaining: 595453231,
+    recent: [
+      {
+        ts: 200,
+        public_model: 'amanai/deepseek-v4-flash',
+        input_tokens: 1234,
+        output_tokens: 450,
+        cache_read_tokens: 800,
+        credits: 143783,
+      },
+    ],
+  };
+
+  it('attributes exact credits when the token has an amanai key and the model is amanai', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id, { amanaiKey: 'sk-test' });
+
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => AMANAI_USAGE }) as Response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const res = await post(
+        token,
+        usagePayload({
+          model: 'amanai/deepseek-v4-flash',
+          tokens: { input: 1234, cache_read: 800, cache_write: 200, output: 450, total: 2684 },
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      // Attribution is fire-and-forget; poll briefly for the backfill.
+      let log = null;
+      for (let i = 0; i < 20; i++) {
+        log = await UsageLog.findOne().exec();
+        if (log?.amanaiCredits !== null) break;
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      expect(log?.amanaiCredits).toBe(143783);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('leaves amanaiCredits null when the token has no amanai key', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id);
+
+    const res = await post(
+      token,
+      usagePayload({
+        model: 'amanai/deepseek-v4-flash',
+        tokens: { input: 1234, cache_read: 800, cache_write: 200, output: 450, total: 2684 },
+      }),
+    );
+    expect(res.status).toBe(204);
+
+    const log = await UsageLog.findOne().exec();
+    expect(log?.amanaiCredits).toBeNull();
+  });
+
+  it('does not attribute credits for a non-amanai model even with a token amanai key', async () => {
+    const user = await makeUser();
+    const { token } = await makeApiToken(user._id, { amanaiKey: 'sk-test' });
+
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => AMANAI_USAGE }) as Response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await post(token, usagePayload({ model: 'claude-sonnet-5' }));
+      expect(fetchMock).not.toHaveBeenCalled();
+      const log = await UsageLog.findOne().exec();
+      expect(log?.amanaiCredits).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

@@ -67,4 +67,5 @@ export const CacheKeys = {
   providerPricing: 'provider-pricing:',
   dashboard: 'dashboard:',
   aiSearch: 'ai-search:',
+  amanaiUsage: 'amanai-usage:',
 } as const;

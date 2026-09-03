@@ -20,6 +20,7 @@ export interface ApiTokenView {
   label: string;
   tokenPrefix: string;
   revoked: boolean;
+  hasAmanaiKey: boolean;
   lastUsedAt: string | null;
   createdAt: string;
 }
