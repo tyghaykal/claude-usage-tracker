@@ -318,7 +318,7 @@ describe('/api/tokens', () => {
     // The key itself is never returned.
     expect(JSON.stringify(setRes.body)).not.toContain('sk-amanai-test');
     // Stored encrypted.
-    const stored = await ApiToken.findById(id).exec();
+    const stored = await ApiToken.findById(id).select("amanaiKeyEnc").exec();
     expect(stored?.amanaiKeyEnc).toBeTruthy();
     expect(stored?.amanaiKeyEnc).not.toContain('sk-amanai-test');
 

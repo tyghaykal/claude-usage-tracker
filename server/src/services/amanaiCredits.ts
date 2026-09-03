@@ -115,7 +115,7 @@ export function findAmanaiCredits(
   let best: AmanaiUsageEntry | null = null;
   for (const entry of usage.recent) {
     const m = bareModel(entry.public_model);
-    if (m !== base && !m.includes(base) && !base.includes(m)) continue;
+    if (m !== base) continue;
     if ((Number(entry.input_tokens) || 0) !== wantInput) continue;
     if ((Number(entry.output_tokens) || 0) !== wantOutput) continue;
     if ((Number(entry.cache_read_tokens) || 0) !== wantCacheRead) continue;

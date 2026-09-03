@@ -51,7 +51,7 @@ const apiTokenSchema = new Schema<ApiTokenDoc>(
     tokenHash: { type: String, required: true, unique: true },
     tokenPrefix: { type: String, required: true },
     revoked: { type: Boolean, default: false },
-    amanaiKeyEnc: { type: String, default: null },
+    amanaiKeyEnc: { type: String, default: null, select: false },
     lastUsedAt: { type: Date, default: null },
   },
   { timestamps: true },
