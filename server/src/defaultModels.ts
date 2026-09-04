@@ -192,6 +192,57 @@ export const DEFAULT_MODEL_RATES: Readonly<Record<string, Rates>> = {
   'claude-haiku-4.5': { inputPerMTok: 1, cacheWritePerMTok: 1.25, cacheReadPerMTok: 0.1, outputPerMTok: 5 },
 };
 
+/**
+ * Credit multipliers from https://ai.amanai.dev/docs/models/ ("Multipliers & pricing"),
+ * fetched 2026-09-03. Their published formula is
+ * `credits = (input - cache)×m_in + cache×m_cache + output×m_out`; across every listed
+ * model, `m_out` is always exactly 5×`m_in` and `m_cache` is always exactly 0.25×`m_in`
+ * (see AMANAI_OUTPUT_RATIO / AMANAI_CACHE_RATIO in services/amanaiCredits.ts), so only
+ * `m_in` needs to be stored per model.
+ */
+export const AMANAI_MULTIPLIERS: Readonly<Record<string, number>> = {
+  'glm-5.3': 5.6,
+  'glm-5.3-flash': 2.8,
+  'glm-5.2': 5.6,
+  'glm-5.1': 5.6,
+  'glm-5.0': 4.0,
+  'glm-5.0-turbo': 4.8,
+  'glm-5v-turbo': 4.8,
+  'muse-spark-1.1': 5.0,
+  'muse-spark-1.2': 5.0,
+  'qwen3.8-max-preview': 6.0,
+  'qwen3.7-max': 4.425,
+  'qwen3.7-plus': 2.24,
+  'kimi-k3': 9.0,
+  'kimi-k2.7': 3.8,
+  'kimi-k2.6': 3.8,
+  'kimi-k2.5': 2.28,
+  'deepseek-v4-pro': 5.0,
+  'deepseek-v4-pro-0813': 5.0,
+  'deepseek-v4-flash': 2.5,
+  'deepseek-v4-flash-0731': 2.5,
+  'minimax-m3': 2.1,
+  'minimax-m2.7': 1.2,
+  'hy3-preview': 4.5,
+  'grok-4.5': 6.0,
+  'grok-4.6': 6.0,
+  'gpt-5.3-codex-spark': 1.75,
+  'gpt-5.4-mini': 1.5,
+  'gpt-5.4': 5.0,
+  'gpt-5.5': 10.0,
+  'gpt-5.6-sol': 10.0,
+  'gpt-5.6-terra': 7.5,
+  'gpt-5.6-luna': 5.625,
+  'claude-fable-5': 30.0,
+  'claude-opus-5': 15.0,
+  'claude-opus-4.8': 15.0,
+  'claude-opus-4.7': 15.0,
+  'claude-opus-4.6': 15.0,
+  'claude-sonnet-5': 10.5,
+  'claude-sonnet-4.6': 9.0,
+  'claude-haiku-4.5': 3.0,
+};
+
 const ZERO_RATES: Rates = {
   inputPerMTok: 0,
   cacheWritePerMTok: 0,

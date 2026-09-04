@@ -34,11 +34,6 @@ export interface ApiTokenDoc extends Document<Types.ObjectId> {
   tokenHash: string;
   tokenPrefix: string;
   revoked: boolean;
-  /** Optional amanai API key for this token, AES-256-GCM encrypted. When set,
-   *  requests made with this token attribute their exact amanai credit cost from
-   *  the live usage log. Null = no amanai credit calculation for this token.
-   *  Never serialised to any API response. */
-  amanaiKeyEnc: string | null;
   lastUsedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -51,7 +46,6 @@ const apiTokenSchema = new Schema<ApiTokenDoc>(
     tokenHash: { type: String, required: true, unique: true },
     tokenPrefix: { type: String, required: true },
     revoked: { type: Boolean, default: false },
-    amanaiKeyEnc: { type: String, default: null, select: false },
     lastUsedAt: { type: Date, default: null },
   },
   { timestamps: true },
@@ -136,9 +130,10 @@ export interface UsageLogDoc extends Document<Types.ObjectId> {
   provider: string | null;
   tokens: TokenCounts;
   estimatedCostUsd: number | null;
-  /** Exact amanai credit cost, attributed from the live usage log when an
-   *  AMANAI_API_KEY is configured and a matching request is found. Null when
-   *  no key is set, the model isn't amanai, or no usage-log match was found. */
+  /** Exact amanai credit cost, computed from amanai's own published per-model
+   *  multiplier (services/amanaiCredits.ts) — deterministic, no API key or network
+   *  call involved. Null when the model isn't amanai, or amanai hasn't published a
+   *  multiplier for it. */
   amanaiCredits: number | null;
   pricingSnapshot: PricingSnapshot | null;
   recalculatedAt: Date | null;

@@ -113,15 +113,15 @@ async function remove(provider: AiProviderView) {
 <template>
   <div class="space-y-4">
     <h1 class="text-xl font-semibold">AI providers</h1>
-    <p class="text-sm text-slate-500 dark:text-slate-400">
+    <p class="text-sm text-stone-500 dark:text-stone-400">
       Used only by the <strong>Search</strong> button on the model pricing page. OpenAI-compatible
       and Anthropic Messages endpoints both work — the app POSTs to
-      <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">{baseUrl}/chat/completions</code>, then
-      <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">{baseUrl}/messages</code> if needed. Keys are stored
+      <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">{baseUrl}/chat/completions</code>, then
+      <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">{baseUrl}/messages</code> if needed. Keys are stored
       encrypted and are never shown again, here or anywhere else.
     </p>
-    <p class="text-sm text-slate-500 dark:text-slate-400">
-      Saving sends one tiny <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">max_tokens: 1</code> request to
+    <p class="text-sm text-stone-500 dark:text-stone-400">
+      Saving sends one tiny <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">max_tokens: 1</code> request to
       check the URL, key and model actually work together. A provider that fails the check is not
       stored — the error tells you which of the three is wrong.
     </p>
@@ -189,8 +189,8 @@ async function remove(provider: AiProviderView) {
     </form>
 
     <div class="card overflow-x-auto p-0">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700">
+      <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+        <thead class="bg-stone-50 dark:bg-stone-700">
           <tr>
             <th class="th">Label</th>
             <th class="th">Base URL</th>
@@ -201,9 +201,9 @@ async function remove(provider: AiProviderView) {
             <th class="th"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
           <tr v-if="providers.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="7">
+            <td class="td text-center text-stone-500 dark:text-stone-400" colspan="7">
               No providers configured. Pricing can still be entered by hand.
             </td>
           </tr>
@@ -228,7 +228,7 @@ async function remove(provider: AiProviderView) {
               >
                 {{ rowTests.get(p.id)!.ok ? `ok · ${rowTests.get(p.id)!.latencyMs}ms` : 'failed' }}
               </span>
-              <span v-else class="text-xs text-slate-400 dark:text-slate-500">not checked</span>
+              <span v-else class="text-xs text-stone-400 dark:text-stone-500">not checked</span>
             </td>
             <td class="td text-right whitespace-nowrap">
               <button

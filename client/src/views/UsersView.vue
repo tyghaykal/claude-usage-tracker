@@ -140,8 +140,8 @@ async function resetPassword() {
     </form>
 
     <div class="card overflow-x-auto p-0">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700">
+      <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+        <thead class="bg-stone-50 dark:bg-stone-700">
           <tr>
             <th class="th">Name</th>
             <th class="th">Email</th>
@@ -150,7 +150,7 @@ async function resetPassword() {
             <th class="th"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
           <tr v-for="u in users" :key="u.id">
             <td class="td font-medium">{{ u.name }}</td>
             <td class="td">{{ u.email }}</td>
@@ -182,14 +182,14 @@ async function resetPassword() {
       </table>
     </div>
 
-    <p class="text-xs text-slate-500 dark:text-slate-400">
+    <p class="text-xs text-stone-500 dark:text-stone-400">
       The last remaining admin cannot be demoted. If every admin is locked out, run
-      <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">cli reset-password</code> on the server.
+      <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">cli reset-password</code> on the server.
     </p>
 
     <div
       v-if="editing.id"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
       @click.self="editing.id = ''"
     >
       <form class="card w-full max-w-sm space-y-3" @submit.prevent="saveEdit">
@@ -212,7 +212,7 @@ async function resetPassword() {
 
     <div
       v-if="resetting.id"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4"
       @click.self="resetting.id = ''"
     >
       <form class="card w-full max-w-sm space-y-3" @submit.prevent="resetPassword">

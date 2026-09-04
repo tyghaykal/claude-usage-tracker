@@ -9,9 +9,15 @@ import { onClickOutside } from '../composables/onClickOutside';
  */
 defineOptions({ inheritAttrs: false });
 
+export interface SearchableSelectOption {
+  value: string;
+  label: string;
+}
+
 const props = defineProps<{
   modelValue: string;
-  options: string[];
+  /** A plain string is shorthand for `{ value: s, label: s }`. */
+  options: (string | SearchableSelectOption)[];
   placeholder?: string;
   /** Shown as the first, always-present option. */
   anyLabel?: string;
@@ -25,14 +31,18 @@ const query = ref('');
 const root = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLInputElement | null>(null);
 
+const normalized = computed<SearchableSelectOption[]>(() =>
+  props.options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o)),
+);
+
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
-  if (!q) return props.options;
-  return props.options.filter((o) => o.toLowerCase().includes(q));
+  if (!q) return normalized.value;
+  return normalized.value.filter((o) => o.label.toLowerCase().includes(q));
 });
 
 function displayValue(): string {
-  return props.modelValue;
+  return normalized.value.find((o) => o.value === props.modelValue)?.label ?? props.modelValue;
 }
 
 function openDropdown() {
@@ -78,7 +88,7 @@ onClickOutside(root, () => {
       @keydown.escape="open = false"
     />
     <svg
-      class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+      class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500"
       viewBox="0 0 20 20"
       fill="currentColor"
       aria-hidden="true"
@@ -92,24 +102,24 @@ onClickOutside(root, () => {
 
     <ul
       v-if="open"
-      class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-800 dark:bg-slate-900"
+      class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-stone-200 bg-white py-1 text-sm shadow-lg dark:border-stone-800 dark:bg-stone-900"
     >
       <li
-        class="cursor-pointer px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
-        :class="{ 'font-medium text-slate-900 dark:text-slate-100': modelValue === '' }"
+        class="cursor-pointer px-3 py-1.5 hover:bg-stone-100 dark:hover:bg-stone-800"
+        :class="{ 'font-medium text-stone-900 dark:text-stone-100': modelValue === '' }"
         @mousedown.prevent="choose('')"
       >
         {{ anyLabel ?? 'Any' }}
       </li>
-      <li v-if="filtered.length === 0" class="px-3 py-1.5 text-slate-400 dark:text-slate-500">No matches</li>
+      <li v-if="filtered.length === 0" class="px-3 py-1.5 text-stone-400 dark:text-stone-500">No matches</li>
       <li
         v-for="opt in filtered"
-        :key="opt"
-        class="cursor-pointer px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
-        :class="{ 'font-medium text-slate-900 dark:text-slate-100': modelValue === opt }"
-        @mousedown.prevent="choose(opt)"
+        :key="opt.value"
+        class="cursor-pointer px-3 py-1.5 hover:bg-stone-100 dark:hover:bg-stone-800"
+        :class="{ 'font-medium text-stone-900 dark:text-stone-100': modelValue === opt.value }"
+        @mousedown.prevent="choose(opt.value)"
       >
-        {{ opt }}
+        {{ opt.label }}
       </li>
     </ul>
   </div>

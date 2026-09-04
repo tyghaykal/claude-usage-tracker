@@ -16,7 +16,7 @@ import { api, dayToIso, toQuery } from '../api';
 import UsageFilters, { type FilterModel } from '../components/UsageFilters.vue';
 import { useRealtime } from '../composables/useRealtime';
 import { useTheme } from '../composables/useTheme';
-import { formatCost, formatTokens } from '../format';
+import { AMANAI_IDR_PER_CREDIT, formatCost, formatTokens } from '../format';
 import type { DashboardSummary, UserDirectoryEntry } from '../types';
 
 Chart.register(
@@ -86,6 +86,15 @@ const tiles = computed(() => {
   ];
 });
 
+const hasAmanaiData = computed(() => (summary.value?.totals.amanaiCredits ?? 0) > 0);
+const amanaiTiles = computed(() => {
+  const credits = summary.value?.totals.amanaiCredits ?? 0;
+  return [
+    { label: 'Amanai credits', value: formatTokens(credits) },
+    { label: 'Amanai (IDR)', value: formatCost(credits * AMANAI_IDR_PER_CREDIT, 'IDR') },
+  ];
+});
+
 const overTime = computed(() => ({
   labels: summary.value?.byDay.map((d) => d.key ?? '—') ?? [],
   datasets: [
@@ -110,6 +119,24 @@ const costOverTime = computed(() => ({
     },
   ],
 }));
+
+const amanaiOverTime = computed(() => ({
+  labels: summary.value?.byDay.map((d) => d.key ?? '—') ?? [],
+  datasets: [
+    {
+      label: 'Amanai credits',
+      data: summary.value?.byDay.map((d) => d.amanaiCredits) ?? [],
+      backgroundColor: PALETTE[5],
+    },
+  ],
+}));
+
+/** Only amanai models actually accrue credits — everything else sums to 0. */
+const amanaiByModel = computed(() =>
+  (summary.value?.byModel ?? [])
+    .filter((r) => r.amanaiCredits > 0)
+    .sort((a, b) => b.amanaiCredits - a.amanaiCredits),
+);
 
 const byModel = computed(() => {
   const rows = summary.value?.byModel ?? [];
@@ -149,21 +176,27 @@ const hasData = computed(() => (summary.value?.totals.prompts ?? 0) > 0);
     <UsageFilters v-model="filters" />
 
     <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ error }}</p>
-    <p v-else-if="loading" class="card text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+    <p v-else-if="loading" class="card text-sm text-stone-500 dark:text-stone-400">Loading…</p>
 
     <template v-else>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div v-for="tile in tiles" :key="tile.label" class="card">
-          <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ tile.label }}</div>
+          <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400">{{ tile.label }}</div>
           <div class="mt-1 text-2xl font-semibold">{{ tile.value }}</div>
         </div>
+        <template v-if="hasAmanaiData">
+          <div v-for="tile in amanaiTiles" :key="tile.label" class="card">
+            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400">{{ tile.label }}</div>
+            <div class="mt-1 text-2xl font-semibold">{{ tile.value }}</div>
+          </div>
+        </template>
       </div>
 
-      <div v-if="!hasData" class="card text-sm text-slate-600 dark:text-slate-400">
+      <div v-if="!hasData" class="card text-sm text-stone-600 dark:text-stone-400">
         <p class="font-medium">No usage recorded yet.</p>
         <p class="mt-1">
           Create an API token, then point the plugin at this server with
-          <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">/claude-usage-reporter:usage-config set usageEndpoint …</code>
+          <code class="rounded bg-stone-100 px-1 dark:bg-stone-700">/claude-usage-reporter:usage-config set usageEndpoint …</code>
         </p>
       </div>
 
@@ -185,12 +218,38 @@ const hasData = computed(() => (summary.value?.totals.prompts ?? 0) > 0);
             <h2 class="mb-3 text-sm font-semibold">Top projects</h2>
             <div class="h-64"><Bar :key="theme" :data="byProject" :options="chartOptions" /></div>
           </div>
+          <div v-if="hasAmanaiData" class="card">
+            <h2 class="mb-3 text-sm font-semibold">Amanai credits over time</h2>
+            <div class="h-64"><Bar :key="theme" :data="amanaiOverTime" :options="chartOptions" /></div>
+          </div>
+        </div>
+
+        <div v-if="hasAmanaiData" class="card overflow-x-auto p-0">
+          <h2 class="px-5 pt-5 text-sm font-semibold">Amanai credits by model</h2>
+          <table class="mt-3 min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+            <thead class="bg-stone-50 dark:bg-stone-700">
+              <tr>
+                <th class="th">Model</th>
+                <th class="th text-right">Prompts</th>
+                <th class="th text-right">Credits</th>
+                <th class="th text-right">Amanai (IDR)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
+              <tr v-for="row in amanaiByModel" :key="row.key ?? 'unreported'">
+                <td class="td">{{ row.key ?? '—' }}</td>
+                <td class="td text-right">{{ formatTokens(row.prompts) }}</td>
+                <td class="td text-right">{{ formatTokens(row.amanaiCredits) }}</td>
+                <td class="td text-right">{{ formatCost(row.amanaiCredits * AMANAI_IDR_PER_CREDIT, 'IDR') }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="card overflow-x-auto p-0">
           <h2 class="px-5 pt-5 text-sm font-semibold">Top developers</h2>
-          <table class="mt-3 min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-700">
+          <table class="mt-3 min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+            <thead class="bg-stone-50 dark:bg-stone-700">
               <tr>
                 <th class="th">Developer</th>
                 <th class="th text-right">Prompts</th>
@@ -198,7 +257,7 @@ const hasData = computed(() => (summary.value?.totals.prompts ?? 0) > 0);
                 <th class="th text-right">Estimated cost</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
               <tr v-for="row in topUsers" :key="row.key ?? 'unknown'">
                 <td class="td">{{ userNames.get(row.key ?? '') ?? (row.key ?? '—').slice(-6) }}</td>
                 <td class="td text-right">{{ formatTokens(row.prompts) }}</td>

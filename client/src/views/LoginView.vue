@@ -35,7 +35,7 @@ async function submit() {
     <form class="card w-full max-w-sm space-y-4" @submit.prevent="submit">
       <div>
         <h1 class="text-lg font-semibold">Sign in</h1>
-        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Claude Usage Tracker</p>
+        <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">Claude Usage Tracker</p>
       </div>
 
       <div>
@@ -62,14 +62,14 @@ async function submit() {
       </button>
 
       <!-- FR-2: there is deliberately no self-service reset link. -->
-      <p class="text-center text-xs text-slate-500 dark:text-slate-400">
+      <p class="text-center text-xs text-stone-500 dark:text-stone-400">
         Forgot your password? Ask an admin to reset it, or run
-        <code class="rounded bg-slate-100 px-1 dark:bg-slate-700">cli reset-password</code> on the server.
+        <code class="rounded bg-stone-100 px-1 dark:bg-stone-700">cli reset-password</code> on the server.
       </p>
-      <p class="flex justify-center gap-3 text-center text-xs text-slate-400 dark:text-slate-500">
+      <p class="flex justify-center gap-3 text-center text-xs text-stone-400 dark:text-stone-500">
         <span>v0.1.2</span>
-        <RouterLink :to="{ name: 'changelog' }" class="hover:text-slate-600 dark:hover:text-slate-300">Changelog</RouterLink>
-        <RouterLink :to="{ name: 'privacy' }" class="hover:text-slate-600 dark:hover:text-slate-300">Privacy &amp; data</RouterLink>
+        <RouterLink :to="{ name: 'changelog' }" class="hover:text-stone-600 dark:hover:text-stone-300">Changelog</RouterLink>
+        <RouterLink :to="{ name: 'privacy' }" class="hover:text-stone-600 dark:hover:text-stone-300">Privacy &amp; data</RouterLink>
       </p>
     </form>
   </div>

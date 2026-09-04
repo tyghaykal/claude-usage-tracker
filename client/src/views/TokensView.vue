@@ -74,33 +74,6 @@ async function remove(token: ApiTokenView) {
   await load();
 }
 
-/** The amanai key being typed for a token (by token id). Empty = clearing. */
-const amanaiInput = ref<Record<string, string>>({});
-const amanaiSaving = ref<Record<string, boolean>>({});
-const amanaiError = ref('');
-
-function setAmanaiInput(id: string, event: Event) {
-  amanaiInput.value[id] = (event.target as HTMLInputElement).value;
-}
-
-/** Save (or clear, when the input is empty) a token's amanai key. */
-async function saveAmanaiKey(token: ApiTokenView) {
-  amanaiError.value = '';
-  amanaiSaving.value[token.id] = true;
-  try {
-    await api<{ apiToken: ApiTokenView }>(`/tokens/${token.id}/amanai-key`, {
-      method: 'POST',
-      body: { amanaiKey: (amanaiInput.value[token.id] ?? '').trim() },
-    });
-    amanaiInput.value[token.id] = '';
-    await load();
-  } catch (err) {
-    amanaiError.value = err instanceof Error ? err.message : 'Could not save amanai key';
-  } finally {
-    amanaiSaving.value[token.id] = false;
-  }
-}
-
 async function copy(text: string) {
   try {
     if (!navigator.clipboard) throw new Error('Clipboard unavailable');
@@ -115,7 +88,7 @@ async function copy(text: string) {
 <template>
   <div class="space-y-4">
     <h1 class="text-xl font-semibold">API tokens</h1>
-    <p class="text-sm text-slate-500 dark:text-slate-400">
+    <p class="text-sm text-stone-500 dark:text-stone-400">
       One token per machine is a good default. Issuing a new token never invalidates your
       existing ones — revoking is always explicit.
     </p>
@@ -135,7 +108,7 @@ async function copy(text: string) {
         Copy this token now — it is never shown again
       </h2>
       <div class="flex items-center gap-2">
-        <code class="min-w-0 grow overflow-x-auto rounded bg-white px-3 py-2 text-sm dark:bg-slate-950">{{ freshToken }}</code>
+        <code class="min-w-0 grow overflow-x-auto rounded bg-white px-3 py-2 text-sm dark:bg-stone-950">{{ freshToken }}</code>
         <button class="btn-secondary" @click="copy(freshToken)">Copy</button>
       </div>
 
@@ -166,7 +139,7 @@ async function copy(text: string) {
 
         <pre
           v-if="setupMode === 'global'"
-          class="mt-1 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-slate-950"
+          class="mt-1 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-stone-950"
         >/claude-usage-reporter:usage-config set usageEndpoint {{ endpoint }}
 /claude-usage-reporter:usage-config set usageAuthType Header
 /claude-usage-reporter:usage-config set usageHeaderValue {{ freshToken }}</pre>
@@ -180,20 +153,20 @@ async function copy(text: string) {
               placeholder="client"
             />
           </div>
-          <pre class="mt-2 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-slate-950"
+          <pre class="mt-2 overflow-x-auto rounded bg-white p-3 text-xs dark:bg-stone-950"
             >/claude-usage-reporter:usage-config set {{ projectKeyArg('usageEndpoint') }} {{ endpoint }}
 /claude-usage-reporter:usage-config set {{ projectKeyArg('usageAuthType') }} Header
 /claude-usage-reporter:usage-config set {{ projectKeyArg('usageHeaderValue') }} {{ freshToken }}</pre>
           <p class="mt-1 text-xs text-emerald-900 dark:text-emerald-300">
             Requires claude-usage-reporter v0.2.0 or later — run
-            <code class="rounded bg-white px-1 dark:bg-slate-950">/plugin</code> to check for an
+            <code class="rounded bg-white px-1 dark:bg-stone-950">/plugin</code> to check for an
             update. The key only needs quoting when
-            <code class="rounded bg-white px-1 dark:bg-slate-950">&lt;project&gt;</code> contains a
+            <code class="rounded bg-white px-1 dark:bg-stone-950">&lt;project&gt;</code> contains a
             space — the shell would otherwise split it into extra arguments.
             It must match your project's real name exactly — case, spaces, everything. Run
-            <code class="rounded bg-white px-1 dark:bg-slate-950">/claude-usage-reporter:usage-config</code>
+            <code class="rounded bg-white px-1 dark:bg-stone-950">/claude-usage-reporter:usage-config</code>
             with no arguments from inside that project; the terminal report's
-            <code class="rounded bg-white px-1 dark:bg-slate-950">[project-name] ...</code> line shows
+            <code class="rounded bg-white px-1 dark:bg-stone-950">[project-name] ...</code> line shows
             the exact string to use.
           </p>
         </template>
@@ -203,21 +176,20 @@ async function copy(text: string) {
     </div>
 
     <div class="card overflow-x-auto p-0">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700">
+      <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+        <thead class="bg-stone-50 dark:bg-stone-700">
           <tr>
             <th class="th">Label</th>
             <th class="th">Token</th>
             <th class="th">Status</th>
-            <th class="th">Amanai</th>
             <th class="th">Last used</th>
             <th class="th">Created</th>
             <th class="th"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
           <tr v-if="tokens.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="7">No tokens yet.</td>
+            <td class="td text-center text-stone-500 dark:text-stone-400" colspan="6">No tokens yet.</td>
           </tr>
           <tr v-for="t in tokens" :key="t.id">
             <td class="td">{{ t.label || '—' }}</td>
@@ -230,31 +202,6 @@ async function copy(text: string) {
                 {{ t.revoked ? 'revoked' : 'active' }}
               </span>
             </td>
-            <td class="td">
-              <div v-if="t.revoked" class="text-xs text-slate-400">—</div>
-              <div v-else class="flex items-center gap-2">
-                <span
-                  class="badge whitespace-nowrap"
-                  :class="t.hasAmanaiKey ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
-                >
-                  {{ t.hasAmanaiKey ? 'set' : 'none' }}
-                </span>
-                <input
-                  :value="amanaiInput[t.id] ?? ''"
-                  @input="setAmanaiInput(t.id, $event)"
-                  type="password"
-                  class="input w-40 text-xs"
-                  :placeholder="t.hasAmanaiKey ? 'new key to change' : 'amanai key'"
-                />
-                <button
-                  class="btn-secondary text-xs"
-                  :disabled="amanaiSaving[t.id]"
-                  @click="saveAmanaiKey(t)"
-                >
-                  {{ t.hasAmanaiKey ? 'Change' : 'Set' }}
-                </button>
-              </div>
-            </td>
             <td class="td whitespace-nowrap">{{ formatDateTime(t.lastUsedAt) }}</td>
             <td class="td whitespace-nowrap">{{ formatDateTime(t.createdAt) }}</td>
             <td class="td text-right">
@@ -264,7 +211,6 @@ async function copy(text: string) {
           </tr>
         </tbody>
       </table>
-      <p v-if="amanaiError" class="px-4 py-2 text-sm text-red-600 dark:text-red-400">{{ amanaiError }}</p>
     </div>
   </div>
 </template>

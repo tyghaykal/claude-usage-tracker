@@ -80,7 +80,7 @@ async function importBackup(event: Event) {
 
     <div class="card space-y-2">
       <h2 class="text-sm font-semibold">Export</h2>
-      <p class="text-sm text-slate-600 dark:text-slate-400">
+      <p class="text-sm text-stone-600 dark:text-stone-400">
         Downloads every collection (users, tokens, pricing, usage logs, projects, AI provider configs) as one zip file.
       </p>
       <button class="btn-primary" :disabled="exporting" @click="exportBackup">
@@ -90,7 +90,7 @@ async function importBackup(event: Event) {
 
     <div class="card space-y-2">
       <h2 class="text-sm font-semibold">Import</h2>
-      <p class="text-sm text-slate-600 dark:text-slate-400">
+      <p class="text-sm text-stone-600 dark:text-stone-400">
         Upload a zip previously produced by Export. Only collections present in the file are replaced.
       </p>
       <input ref="fileInput" type="file" accept=".zip" class="hidden" @change="importBackup" />

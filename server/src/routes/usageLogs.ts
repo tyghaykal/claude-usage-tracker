@@ -15,6 +15,7 @@ import {
   resolvePricing,
 } from '../pricing.js';
 import type { Broadcaster } from '../realtime.js';
+import { computeAmanaiCredits } from '../services/amanaiCredits.js';
 
 const filterSchema = z.object({
   project: z.string().trim().min(1).optional(),
@@ -171,9 +172,17 @@ export function usageLogRoutes(config: Config, cache: TtlCache, broadcaster: Bro
           config.PRICING_CACHE_TTL_MS,
         );
         if (providerDisabled) {
-          if (log.estimatedCostUsd === null && log.pricingSnapshot === null) continue;
+          const amanaiCredits = computeAmanaiCredits(log.modelId, log.tokens);
+          if (
+            log.estimatedCostUsd === null &&
+            log.pricingSnapshot === null &&
+            log.amanaiCredits === amanaiCredits
+          ) {
+            continue;
+          }
           log.estimatedCostUsd = null;
           log.pricingSnapshot = null;
+          log.amanaiCredits = amanaiCredits;
           log.recalculatedAt = new Date();
           await log.save();
           updated += 1;
@@ -181,13 +190,23 @@ export function usageLogRoutes(config: Config, cache: TtlCache, broadcaster: Bro
         }
 
         const current = resolvePricing(pricing, log.modelId);
+        const amanaiCredits = computeAmanaiCredits(log.modelId, log.tokens);
         // A model we still have no price for is left exactly as it was —
         // recalculation never blanks out a figure it cannot improve on.
         // All-zero catalog seeds are names, not rates, so they skip too.
-        if (!hasPricedRates(current)) continue;
+        // amanai credits are deterministic regardless, so they still update.
+        if (!hasPricedRates(current)) {
+          if (log.amanaiCredits === amanaiCredits) continue;
+          log.amanaiCredits = amanaiCredits;
+          log.recalculatedAt = new Date();
+          await log.save();
+          updated += 1;
+          continue;
+        }
         const { estimatedCostUsd, pricingSnapshot } = priceTokens(log.tokens, current);
         log.estimatedCostUsd = estimatedCostUsd;
         log.pricingSnapshot = pricingSnapshot;
+        log.amanaiCredits = amanaiCredits;
         log.recalculatedAt = new Date();
         await log.save();
         updated += 1;

@@ -21,8 +21,9 @@ const TOTALS = {
   cacheReadTokens: { $sum: '$tokens.cache_read' },
   cacheWriteTokens: { $sum: '$tokens.cache_write' },
   outputTokens: { $sum: '$tokens.output' },
-  // Unpriced rows hold null; $sum skips non-numeric, so they contribute 0.
+  // Unpriced/non-amanai rows hold null; $sum skips non-numeric, so they contribute 0.
   estimatedCostUsd: { $sum: '$estimatedCostUsd' },
+  amanaiCredits: { $sum: '$amanaiCredits' },
 } as const;
 
 const emptyTotals = {
@@ -33,6 +34,7 @@ const emptyTotals = {
   cacheWriteTokens: 0,
   outputTokens: 0,
   estimatedCostUsd: 0,
+  amanaiCredits: 0,
 };
 
 /** FR-10. Mounted behind requireAuth. */

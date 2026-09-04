@@ -20,7 +20,6 @@ export interface ApiTokenView {
   label: string;
   tokenPrefix: string;
   revoked: boolean;
-  hasAmanaiKey: boolean;
   lastUsedAt: string | null;
   createdAt: string;
 }
@@ -52,6 +51,7 @@ export interface UsageLogRow {
   provider: string | null;
   tokens: TokenCounts;
   estimatedCostUsd: number | null;
+  amanaiCredits: number | null;
   currency: string | null;
   pricingOutdated: boolean;
 }
@@ -134,6 +134,7 @@ export interface SummaryTotals {
   cacheWriteTokens: number;
   outputTokens: number;
   estimatedCostUsd: number;
+  amanaiCredits: number;
 }
 
 export interface SummaryBucket extends SummaryTotals {

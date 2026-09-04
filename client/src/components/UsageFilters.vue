@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../api';
 import SearchableSelect from './SearchableSelect.vue';
 import type { UserDirectoryEntry } from '../types';
@@ -18,6 +18,7 @@ const emit = defineEmits<{ 'update:modelValue': [FilterModel] }>();
 const projects = ref<string[]>([]);
 const models = ref<string[]>([]);
 const users = ref<UserDirectoryEntry[]>([]);
+const userOptions = computed(() => users.value.map((u) => ({ value: u.id, label: u.name })));
 
 const local = ref<FilterModel>({ ...props.modelValue });
 watch(
@@ -54,18 +55,17 @@ function reset() {
 
     <div>
       <label class="label" for="f-user">Developer</label>
-      <select id="f-user" v-model="local.userId" class="input">
-        <option value="">Anyone</option>
-        <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
-      </select>
+      <SearchableSelect
+        id="f-user"
+        v-model="local.userId"
+        :options="userOptions"
+        any-label="Anyone"
+      />
     </div>
 
     <div>
       <label class="label" for="f-model">Model</label>
-      <select id="f-model" v-model="local.model" class="input">
-        <option value="">Any</option>
-        <option v-for="m in models" :key="m" :value="m">{{ m }}</option>
-      </select>
+      <SearchableSelect id="f-model" v-model="local.model" :options="models" />
     </div>
 
     <div>

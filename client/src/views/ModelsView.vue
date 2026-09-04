@@ -194,14 +194,14 @@ async function runAiSearch(refresh = false) {
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 class="text-xl font-semibold">Model pricing</h1>
-        <p v-if="tab === 'pricing'" class="text-sm text-slate-500 dark:text-slate-400">
+        <p v-if="tab === 'pricing'" class="text-sm text-stone-500 dark:text-stone-400">
           Default names come from the Amanai chat catalog (prefix stripped so they match
           what the plugin reports). Pick one below or type a custom id such as
-          <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">9r/claude-sonnet-5</code>. Saving new rates never
+          <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">9r/claude-sonnet-5</code>. Saving new rates never
           rewrites past records; use <strong>Recalculate</strong> on the usage log for that.
         </p>
-        <p v-else class="text-sm text-slate-500 dark:text-slate-400">
-          Providers reported by the plugin's <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">provider</code>
+        <p v-else class="text-sm text-stone-500 dark:text-stone-400">
+          Providers reported by the plugin's <code class="rounded bg-stone-100 px-1 dark:bg-stone-800">provider</code>
           field. Disabling pricing here skips the cost estimate for new prompts from that
           provider — token counts are still recorded exactly.
         </p>
@@ -216,17 +216,17 @@ async function runAiSearch(refresh = false) {
       </button>
     </div>
 
-    <div class="flex gap-4 border-b border-slate-200 dark:border-slate-700">
+    <div class="flex gap-4 border-b border-stone-200 dark:border-stone-700">
       <button
         class="-mb-px border-b-2 px-1 py-2 text-sm font-medium"
-        :class="tab === 'pricing' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400'"
+        :class="tab === 'pricing' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-stone-500 dark:text-stone-400'"
         @click="tab = 'pricing'"
       >
         Pricing
       </button>
       <button
         class="-mb-px border-b-2 px-1 py-2 text-sm font-medium"
-        :class="tab === 'providers' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400'"
+        :class="tab === 'providers' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-stone-500 dark:text-stone-400'"
         @click="tab = 'providers'"
       >
         Providers
@@ -283,7 +283,7 @@ async function runAiSearch(refresh = false) {
       </div>
 
       <!-- FR-11: admin-only AI assist, sitting alongside manual entry. -->
-      <div v-if="auth.isAdmin" class="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-700">
+      <div v-if="auth.isAdmin" class="rounded-md border border-stone-200 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-700">
         <div class="flex flex-wrap items-end gap-3">
           <div class="min-w-48">
             <label class="label" for="provider">Look up pricing with AI</label>
@@ -323,16 +323,16 @@ async function runAiSearch(refresh = false) {
             {{ search.result.disclaimer }}
             <span v-if="search.result.fromCache"> (cached result)</span>
           </p>
-          <p v-if="search.result.suggested.notes" class="text-sm text-slate-600 dark:text-slate-400">
+          <p v-if="search.result.suggested.notes" class="text-sm text-stone-600 dark:text-stone-400">
             Model notes: {{ search.result.suggested.notes }}
           </p>
-          <p class="text-sm text-slate-600 dark:text-slate-400">
+          <p class="text-sm text-stone-600 dark:text-stone-400">
             The fields above are pre-filled with this suggestion. Review, edit if needed, then
             save — nothing has been stored yet.
           </p>
-          <details class="text-xs text-slate-500 dark:text-slate-400">
+          <details class="text-xs text-stone-500 dark:text-stone-400">
             <summary class="cursor-pointer">Raw provider reply</summary>
-            <pre class="mt-1 overflow-auto rounded bg-white p-2 dark:bg-slate-950">{{ search.result.raw }}</pre>
+            <pre class="mt-1 overflow-auto rounded bg-white p-2 dark:bg-stone-950">{{ search.result.raw }}</pre>
           </details>
         </div>
       </div>
@@ -348,8 +348,8 @@ async function runAiSearch(refresh = false) {
     </form>
 
     <div class="card overflow-x-auto p-0">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700">
+      <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+        <thead class="bg-stone-50 dark:bg-stone-700">
           <tr>
             <th class="th">Model</th>
             <th class="th text-right">Input</th>
@@ -361,9 +361,9 @@ async function runAiSearch(refresh = false) {
             <th v-if="auth.isAdmin" class="th"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
           <tr v-if="models.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" :colspan="auth.isAdmin ? 8 : 7">
+            <td class="td text-center text-stone-500 dark:text-stone-400" :colspan="auth.isAdmin ? 8 : 7">
               No pricing configured. Prompts still record exact token counts; only the cost
               estimate is left blank.
             </td>
@@ -377,7 +377,7 @@ async function runAiSearch(refresh = false) {
             <td class="td">
               <span
                 class="badge"
-                :class="m.source === 'ai' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'"
+                :class="m.source === 'ai' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'bg-stone-100 text-stone-700 dark:bg-stone-700 dark:text-stone-300'"
               >
                 {{ m.source }}
               </span>
@@ -399,17 +399,17 @@ async function runAiSearch(refresh = false) {
       </p>
 
       <div class="card overflow-x-auto p-0">
-        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-          <thead class="bg-slate-50 dark:bg-slate-700">
+        <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+          <thead class="bg-stone-50 dark:bg-stone-700">
             <tr>
               <th class="th">Provider</th>
               <th class="th">Pricing</th>
               <th v-if="auth.isAdmin" class="th"></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+          <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
             <tr v-if="logProviders.length === 0">
-              <td class="td text-center text-slate-500 dark:text-slate-400" :colspan="auth.isAdmin ? 3 : 2">
+              <td class="td text-center text-stone-500 dark:text-stone-400" :colspan="auth.isAdmin ? 3 : 2">
                 No providers reported yet — logs ingested without a <code>provider</code> field
                 don't appear here.
               </td>

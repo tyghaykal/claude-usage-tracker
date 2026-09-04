@@ -44,8 +44,8 @@ async function save() {
     <form class="card space-y-4" @submit.prevent="save">
       <div>
         <label class="label" for="email">Email</label>
-        <input id="email" class="input bg-slate-50 dark:bg-slate-700" :value="auth.user?.email" disabled />
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <input id="email" class="input bg-stone-50 dark:bg-stone-700" :value="auth.user?.email" disabled />
+        <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
           Email and role are managed by an admin.
         </p>
       </div>
@@ -55,7 +55,7 @@ async function save() {
         <input id="name" v-model="name" class="input" />
       </div>
 
-      <fieldset class="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <fieldset class="space-y-3 border-t border-stone-200 pt-4 dark:border-stone-700">
         <legend class="text-sm font-semibold">Change password</legend>
         <div>
           <label class="label" for="current">Current password</label>
@@ -77,7 +77,7 @@ async function save() {
             minlength="8"
             autocomplete="new-password"
           />
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">At least 8 characters. Leave blank to keep it.</p>
+          <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">At least 8 characters. Leave blank to keep it.</p>
         </div>
       </fieldset>
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { encryptSecret, generateApiToken } from '../crypto.js';
+import { generateApiToken } from '../crypto.js';
 import type { Config } from '../config.js';
 import { notFound } from '../errors.js';
 import { asyncHandler, objectIdSchema, validate, validated } from '../middleware.js';
@@ -9,15 +9,11 @@ import { ApiToken, type ApiTokenDoc } from '../models.js';
 const createSchema = z.object({ label: z.string().max(120).default('') });
 const idParams = z.object({ id: objectIdSchema });
 
-/** Set or clear a token's amanai API key. Empty string clears it. */
-const amanaiKeySchema = z.object({ amanaiKey: z.string().max(500).optional() });
-
 const publicToken = (token: ApiTokenDoc) => ({
   id: token._id.toString(),
   label: token.label,
   tokenPrefix: token.tokenPrefix,
   revoked: token.revoked,
-  hasAmanaiKey: Boolean(token.amanaiKeyEnc),
   lastUsedAt: token.lastUsedAt,
   createdAt: token.createdAt,
 });
@@ -27,9 +23,8 @@ const publicToken = (token: ApiTokenDoc) => ({
  * who made it, and admins do not get to read or revoke other people's tokens
  * through this surface.
  */
-export function tokenRoutes(config: Config): Router {
+export function tokenRoutes(_config: Config): Router {
   const router = Router();
-  const encrypt = (key: string) => encryptSecret(key, config.SETTINGS_ENCRYPTION_KEY);
 
   router.get(
     '/',
@@ -53,22 +48,6 @@ export function tokenRoutes(config: Config): Router {
       });
       // The only time the plaintext is ever returned. Not recoverable later.
       res.status(201).json({ token, apiToken: publicToken(created) });
-    }),
-  );
-
-  router.post(
-    '/:id/amanai-key',
-    validate(idParams, 'params'),
-    validate(amanaiKeySchema),
-    asyncHandler(async (req, res) => {
-      const { id } = validated<z.infer<typeof idParams>>(req, 'params');
-      const { amanaiKey } = req.body as z.infer<typeof amanaiKeySchema>;
-      const token = await ApiToken.findOne({ _id: id, userId: req.user!._id }).exec();
-      if (!token) throw notFound('API token not found');
-      // Empty/undefined clears the key; otherwise encrypt and store it.
-      token.amanaiKeyEnc = amanaiKey ? encrypt(amanaiKey) : null;
-      await token.save();
-      res.json({ apiToken: publicToken(token) });
     }),
   );
 

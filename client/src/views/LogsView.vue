@@ -4,7 +4,7 @@ import { api, dayToIso, toQuery } from '../api';
 import LogDetailModal from '../components/LogDetailModal.vue';
 import UsageFilters, { type FilterModel } from '../components/UsageFilters.vue';
 import { useRealtime } from '../composables/useRealtime';
-import { formatCost, formatDateTime, formatTokens } from '../format';
+import { AMANAI_IDR_PER_CREDIT, formatCost, formatDateTime, formatTokens } from '../format';
 import { useAuthStore } from '../stores/auth';
 import type { UsageLogDetail, UsageLogRow, UserDirectoryEntry } from '../types';
 
@@ -214,7 +214,7 @@ async function recalculate(scope: 'selected' | 'filter') {
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-xl font-semibold">Usage logs</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400">{{ formatTokens(total) }} prompt(s)</p>
+      <p class="text-sm text-stone-500 dark:text-stone-400">{{ formatTokens(total) }} prompt(s)</p>
     </div>
 
     <UsageFilters v-model="filters" />
@@ -258,11 +258,11 @@ async function recalculate(scope: 'selected' | 'filter') {
         <span v-if="outdatedCount" class="badge bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
           {{ outdatedCount }} row(s) on this page use outdated pricing
         </span>
-        <span v-if="bulkMessage" class="text-sm text-slate-600 dark:text-slate-400">{{ bulkMessage }}</span>
+        <span v-if="bulkMessage" class="text-sm text-stone-600 dark:text-stone-400">{{ bulkMessage }}</span>
       </div>
 
-      <div v-if="renaming" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
-        <span class="whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
+      <div v-if="renaming" class="flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3 dark:border-stone-700">
+        <span class="whitespace-nowrap text-sm text-stone-600 dark:text-stone-400">
           Rename "{{ renameTarget }}" to
         </span>
         <input
@@ -281,8 +281,8 @@ async function recalculate(scope: 'selected' | 'filter') {
         <span v-if="renameError" class="text-sm text-red-700 dark:text-red-400">{{ renameError }}</span>
       </div>
 
-      <div v-if="settingProvider" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
-        <span class="whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
+      <div v-if="settingProvider" class="flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3 dark:border-stone-700">
+        <span class="whitespace-nowrap text-sm text-stone-600 dark:text-stone-400">
           Set provider on
           {{ providerScope === 'selected' ? `${selected.size} selected` : `all ${total} matching this filter` }}
           to
@@ -308,8 +308,8 @@ async function recalculate(scope: 'selected' | 'filter') {
     <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ error }}</p>
 
     <div class="card overflow-x-auto p-0">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700">
+      <table class="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+        <thead class="bg-stone-50 dark:bg-stone-700">
           <tr>
             <th class="th w-8">
               <input type="checkbox" :checked="allSelected" @change="toggleAll" />
@@ -321,14 +321,16 @@ async function recalculate(scope: 'selected' | 'filter') {
             <th class="th">Provider</th>
             <th class="th text-right">Tokens</th>
             <th class="th text-right">Est. cost</th>
+            <th class="th text-right">Amanai credits</th>
+            <th class="th text-right">Amanai (IDR)</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+        <tbody class="divide-y divide-stone-100 dark:divide-stone-700">
           <tr v-if="loading">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="8">Loading…</td>
+            <td class="td text-center text-stone-500 dark:text-stone-400" colspan="10">Loading…</td>
           </tr>
           <tr v-else-if="rows.length === 0">
-            <td class="td text-center text-slate-500 dark:text-slate-400" colspan="8">
+            <td class="td text-center text-stone-500 dark:text-stone-400" colspan="10">
               No usage recorded yet for this filter.
             </td>
           </tr>
@@ -336,7 +338,7 @@ async function recalculate(scope: 'selected' | 'filter') {
             v-for="row in rows"
             v-else
             :key="row.id"
-            class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700"
+            class="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-700"
             @click="openDetail(row.id)"
           >
             <td class="td" @click.stop>
@@ -362,6 +364,12 @@ async function recalculate(scope: 'selected' | 'filter') {
             <td class="td text-right">
               {{ formatCost(row.estimatedCostUsd, row.currency ?? 'USD') }}
             </td>
+            <td class="td text-right tabular-nums">
+              {{ row.amanaiCredits === null ? '—' : formatTokens(row.amanaiCredits) }}
+            </td>
+            <td class="td text-right tabular-nums">
+              {{ row.amanaiCredits === null ? '—' : formatCost(row.amanaiCredits * AMANAI_IDR_PER_CREDIT, 'IDR') }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -369,7 +377,7 @@ async function recalculate(scope: 'selected' | 'filter') {
 
     <div class="flex items-center justify-between">
       <button class="btn-secondary" :disabled="page <= 1" @click="page -= 1">Previous</button>
-      <span class="text-sm text-slate-600 dark:text-slate-400">Page {{ page }} of {{ totalPages || 1 }}</span>
+      <span class="text-sm text-stone-600 dark:text-stone-400">Page {{ page }} of {{ totalPages || 1 }}</span>
       <button class="btn-secondary" :disabled="page >= totalPages" @click="page += 1">Next</button>
     </div>
 

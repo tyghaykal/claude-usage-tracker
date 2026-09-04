@@ -2,42 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* Notion's headline voice: heavy weight, tight negative tracking. Body stays untouched. */
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium
-           transition disabled:cursor-not-allowed disabled:opacity-50;
+           transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-primary {
-    @apply btn bg-slate-900 text-white hover:bg-slate-700
-           dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300;
+    @apply btn rounded-full bg-primary text-white hover:bg-primary-active;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100
-           dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700;
+    @apply btn rounded-full border border-stone-300 bg-white text-stone-700 shadow-notion hover:bg-stone-100
+           dark:border-stone-600 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-700;
   }
   .btn-danger {
-    @apply btn border border-red-300 bg-white text-red-700 hover:bg-red-50
-           dark:border-red-700 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950;
+    @apply btn rounded-full border border-red-300 bg-white text-red-700 hover:bg-red-50
+           dark:border-red-700 dark:bg-stone-900 dark:text-red-400 dark:hover:bg-red-950;
   }
   .input {
-    @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-           focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500
-           dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-slate-400
-           dark:focus:ring-slate-400;
+    @apply w-full rounded border border-stone-300 px-3 py-2 text-sm
+           focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary
+           dark:border-stone-600 dark:bg-stone-950 dark:text-stone-100 dark:focus:border-primary
+           dark:focus:ring-primary;
   }
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300;
+    @apply mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300;
   }
   .card {
-    @apply rounded-lg border border-slate-200 bg-white p-5 shadow-sm
-           dark:border-slate-700 dark:bg-slate-800;
+    @apply rounded-xl border border-stone-200 bg-white p-5 shadow-notion
+           dark:border-stone-700 dark:bg-stone-800;
   }
   .th {
-    @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500
-           dark:text-slate-400;
+    @apply bg-stone-100 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-stone-500
+           dark:bg-stone-900 dark:text-stone-400;
   }
   .td {
-    @apply px-3 py-2 text-sm text-slate-700 dark:text-slate-300;
+    @apply px-3 py-2 text-sm text-stone-700 dark:text-stone-300;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;

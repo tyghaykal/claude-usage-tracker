@@ -3,11 +3,10 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import type { TtlCache } from '../cache.js';
 import type { Config } from '../config.js';
-import { decryptSecret } from '../crypto.js';
 import { asyncHandler, requireApiKey, validate } from '../middleware.js';
-import { UsageLog, type ApiTokenDoc, type UsageLogDoc } from '../models.js';
+import { UsageLog, type ApiTokenDoc } from '../models.js';
 import { isProviderPricingDisabled, lookupPricing, priceTokens } from '../pricing.js';
-import { fetchAmanaiUsage, findAmanaiCredits, isAmanaiModel } from '../services/amanaiCredits.js';
+import { computeAmanaiCredits } from '../services/amanaiCredits.js';
 import { resolveProjectName } from './projects.js';
 import type { Broadcaster } from '../realtime.js';
 
@@ -46,34 +45,6 @@ export type UsagePayload = z.infer<typeof usagePayloadSchema>;
 export async function touchToken(token: ApiTokenDoc): Promise<void> {
   token.lastUsedAt = new Date();
   await token.save().catch(() => undefined);
-}
-
-/**
- * Best-effort, non-blocking backfill of the exact amanai credit cost for one
- * ingested log. Fetches the (cached) live amanai usage log and matches this
- * request's model + token profile to the exact `credits` figure; on success it
- * writes `amanaiCredits` onto the row. Any failure is swallowed — ingestion
- * already succeeded and the log is stored; a missing credit figure is not worth
- * failing or delaying anything.
- *
- * `amanaiKey` is the already-decrypted key from the API token that made the
- * request. When null/empty there is nothing to attribute and this is a no-op.
- */
-async function attributeAmanaiCredits(
-  amanaiKey: string | null,
-  cache: TtlCache,
-  log: UsageLogDoc,
-): Promise<void> {
-  if (!amanaiKey) return;
-  try {
-    const usage = await fetchAmanaiUsage(amanaiKey, cache, 60_000);
-    const credits = findAmanaiCredits(usage, log.modelId, log.tokens);
-    if (credits !== null) {
-      await UsageLog.updateOne({ _id: log._id }, { $set: { amanaiCredits: credits } }).exec();
-    }
-  } catch {
-    // Never let amanai attribution fail ingestion or the request.
-  }
 }
 
 /** FR-9. Mounted at POST /api/usage. */
@@ -122,8 +93,11 @@ export function ingestRoutes(config: Config, cache: TtlCache, broadcaster: Broad
       // not referenced — so a later pricing edit cannot silently restate what
       // this prompt cost (FRD §6, FR-9).
       const { estimatedCostUsd, pricingSnapshot } = priceTokens(payload.tokens, pricing);
+      // Deterministic, from amanai's own published per-model multiplier — no
+      // network call, no per-user setup (services/amanaiCredits.ts).
+      const amanaiCredits = computeAmanaiCredits(payload.model, payload.tokens);
 
-      const created = await UsageLog.create({
+      await UsageLog.create({
         userId: req.user!._id,
         apiTokenId: req.apiToken!._id,
         project,
@@ -137,21 +111,11 @@ export function ingestRoutes(config: Config, cache: TtlCache, broadcaster: Broad
         provider: payload.provider ?? null,
         tokens: payload.tokens,
         estimatedCostUsd,
-        amanaiCredits: null,
+        amanaiCredits,
         pricingSnapshot,
         recalculatedAt: null,
         rawPayload: payload,
       });
-
-      // Optional amanai credit attribution, tied to the API token that made the
-      // request. Only runs when that token has its own amanai key configured AND
-      // the request went through an amanai model; otherwise it is a no-op.
-      // Fire-and-forget so ingestion never waits on the network — the exact
-      // credit cost is backfilled onto the stored row asynchronously.
-      if (req.apiToken?.amanaiKeyEnc && isAmanaiModel(payload.model)) {
-        const amanaiKey = decryptSecret(req.apiToken.amanaiKeyEnc, config.SETTINGS_ENCRYPTION_KEY);
-        attributeAmanaiCredits(amanaiKey, cache, created).catch(() => undefined);
-      }
 
       // Fresh rows change every dashboard aggregate.
       cache.invalidatePrefix('dashboard:');

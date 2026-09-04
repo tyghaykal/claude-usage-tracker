@@ -42,7 +42,7 @@ async function submit() {
     <form class="card w-full max-w-sm space-y-4" @submit.prevent="submit">
       <div>
         <h1 class="text-lg font-semibold">Create the admin account</h1>
-        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
           First run. This form closes permanently once an admin exists.
         </p>
       </div>
@@ -68,7 +68,7 @@ async function submit() {
           minlength="8"
           autocomplete="new-password"
         />
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">At least 8 characters.</p>
+        <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">At least 8 characters.</p>
       </div>
 
       <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ error }}</p>

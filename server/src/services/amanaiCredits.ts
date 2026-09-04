@@ -1,126 +1,51 @@
-import type { TtlCache } from '../cache.js';
-import { CacheKeys } from '../cache.js';
+import { AMANAI_MULTIPLIERS } from '../defaultModels.js';
 import type { TokenCounts } from '../models.js';
 
 /**
- * Exact credit attribution from the amanai live usage log.
+ * Deterministic amanai credit attribution from the per-model multiplier amanai itself
+ * publishes at https://ai.amanai.dev/docs/models/, rather than a live per-user API call.
  *
- * amanai's `/v1/usage` endpoint (authenticated with the amanai API key) returns
- * the *exact* credit cost of every request, both as account totals and as a
- * per-request `recent[]` array where each entry carries its own `credits`
- * figure. There is no public multiplier catalog, so the live usage log is the
- * authoritative source for "how many credits did this request actually cost".
- *
- * A local usage log is matched to an amanai usage entry by (model + token
- * counts), because both sides report those fields identically. When no key is
- * configured, or no match is found (the log window rolled past it), the credit
- * figure stays null — never an error, never a guess.
+ * Their documented formula is `credits = (input - cache)×m_in + cache×m_cache +
+ * output×m_out`. This app's `TokenCounts.input` is already exclusive of `cache_read`
+ * (the four components are additive elsewhere, e.g. `computeCost` in pricing.ts), so the
+ * translation below does not re-subtract cache from input. `cache_write` has no term in
+ * amanai's formula and is treated as unbilled — an assumption, not verified against a
+ * real amanai wire payload.
  */
 
-const USAGE_URL = 'https://api.amanai.dev/v1/usage';
-
-export interface AmanaiUsageEntry {
-  ts: number;
-  public_model: string;
-  input_tokens: number;
-  output_tokens: number;
-  cache_read_tokens: number;
-  credits: number;
-}
-
-export interface AmanaiUsageSnapshot {
-  credit_used: number | null;
-  credit_remaining: number | null;
-  recent: AmanaiUsageEntry[];
-}
+/** m_out is always exactly 5× m_in across every model amanai publishes. */
+export const AMANAI_OUTPUT_RATIO = 5;
+/** m_cache is always exactly 0.25× m_in across every model amanai publishes. */
+export const AMANAI_CACHE_RATIO = 0.25;
+/** Confirmed via amanai's credit-pack pricing ("Ultra (1B) — Rp 150K"). */
+export const AMANAI_IDR_PER_CREDIT = 150_000 / 1_000_000_000;
 
 /** Model ids that go through amanai. Only these get credit attribution. */
 export function isAmanaiModel(modelId: string | null | undefined): boolean {
   return typeof modelId === 'string' && modelId.toLowerCase().startsWith('amanai/');
 }
 
-/**
- * Fetches the amanai usage snapshot. Returns `null` on any failure (offline,
- * bad key, non-2xx, malformed body) so callers never have to handle throws.
- * Cached via the shared TtlCache.
- */
-export async function fetchAmanaiUsage(
-  apiKey: string,
-  cache: TtlCache,
-  ttlMs: number,
-  fetchImpl: typeof fetch = fetch,
-): Promise<AmanaiUsageSnapshot | null> {
-  return cache.wrap(CacheKeys.amanaiUsage, ttlMs, async () => {
-    let response: Response;
-    try {
-      response = await fetchImpl(USAGE_URL, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-    } catch {
-      return null; // offline / aborted
-    }
-    if (!response.ok) return null; // bad key / upstream error
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      return null; // not JSON
-    }
-    if (!body || typeof body !== 'object' || !Array.isArray((body as { recent?: unknown }).recent)) {
-      return null;
-    }
-    const b = body as Record<string, unknown>;
-    const recent = (b.recent as unknown[]).map((r) => {
-      const e = r as Record<string, unknown>;
-      return {
-        ts: Number(e.ts) || 0,
-        public_model: String(e.public_model ?? ''),
-        input_tokens: Number(e.input_tokens) || 0,
-        output_tokens: Number(e.output_tokens) || 0,
-        cache_read_tokens: Number(e.cache_read_tokens) || 0,
-        credits: Number(e.credits) || 0,
-      };
-    });
-    return {
-      credit_used: b.credit_used === undefined ? null : Number(b.credit_used) || 0,
-      credit_remaining: b.credit_remaining === undefined ? null : Number(b.credit_remaining) || 0,
-      recent,
-    };
-  });
-}
-
-/** Drop a leading `amanai/` so the local bare model id matches the public one. */
+/** Drop a leading `amanai/` so the local bare model id matches the multiplier table. */
 function bareModel(modelId: string): string {
   return modelId.toLowerCase().replace(/^amanai\//, '');
 }
 
 /**
- * Finds the amanai usage entry whose token profile matches a local request,
- * and returns its exact `credits`. Matching is on (model + input/output/cache
- * read tokens); the most recent matching entry wins. Returns `null` when no
- * entry matches (e.g. the log window rolled past the request).
+ * Computes the exact amanai credit cost of a request from its model's published
+ * multiplier. Returns `null` when the model isn't an amanai model, or amanai hasn't
+ * published a multiplier for it (an unrecognised/new model) — never a guess.
  */
-export function findAmanaiCredits(
-  usage: AmanaiUsageSnapshot | null | undefined,
+export function computeAmanaiCredits(
   modelId: string | null | undefined,
-  tokens: TokenCounts,
+  tokens: TokenCounts | null | undefined,
 ): number | null {
-  if (!usage || !usage.recent.length || !modelId || !tokens) return null;
-  const base = bareModel(modelId);
-  if (!base) return null;
-  const wantInput = Number(tokens.input) || 0;
-  const wantOutput = Number(tokens.output) || 0;
-  const wantCacheRead = Number(tokens.cache_read) || 0;
+  if (!isAmanaiModel(modelId) || !tokens) return null;
+  const mIn = AMANAI_MULTIPLIERS[bareModel(modelId!)];
+  if (mIn === undefined) return null;
 
-  let best: AmanaiUsageEntry | null = null;
-  for (const entry of usage.recent) {
-    const m = bareModel(entry.public_model);
-    if (m !== base) continue;
-    if ((Number(entry.input_tokens) || 0) !== wantInput) continue;
-    if ((Number(entry.output_tokens) || 0) !== wantOutput) continue;
-    if ((Number(entry.cache_read_tokens) || 0) !== wantCacheRead) continue;
-    // Prefer the most recent matching entry.
-    if (!best || entry.ts > best.ts) best = entry;
-  }
-  return best ? best.credits : null;
+  const credits =
+    (Number(tokens.input) || 0) * mIn +
+    (Number(tokens.cache_read) || 0) * mIn * AMANAI_CACHE_RATIO +
+    (Number(tokens.output) || 0) * mIn * AMANAI_OUTPUT_RATIO;
+  return Number(credits.toFixed(4));
 }

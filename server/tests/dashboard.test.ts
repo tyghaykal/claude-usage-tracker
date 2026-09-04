@@ -29,6 +29,7 @@ describe('GET /api/dashboard/summary', () => {
       cacheWriteTokens: 0,
       outputTokens: 0,
       estimatedCostUsd: 0,
+      amanaiCredits: 0,
     });
     expect(res.body.byDay).toEqual([]);
     expect(res.body.byModel).toEqual([]);
@@ -85,6 +86,25 @@ describe('GET /api/dashboard/summary', () => {
 
     expect(res.body.byModel[0]).toMatchObject({ key: 'claude-sonnet-5', prompts: 2 });
     expect(res.body.byModel.map((m: { key: string | null }) => m.key)).toContain(null);
+  });
+
+  it('sums amanai credits across prompts and by model', async () => {
+    // deepseek-v4-flash (m_in=2.5): 1000*2.5 + 2000*0.625 + 300*12.5 = 2500+1250+3750 = 7500
+    await ingest({ model: 'amanai/deepseek-v4-flash' });
+    await ingest({ model: 'amanai/deepseek-v4-flash' });
+    await ingest({ model: 'claude-sonnet-5' });
+    const { auth } = await makeUserAndLogin(app);
+
+    const res = await request(app).get('/api/dashboard/summary').set('Authorization', auth);
+    expect(res.body.totals.amanaiCredits).toBe(15000);
+    const amanaiModel = res.body.byModel.find(
+      (m: { key: string | null }) => m.key === 'amanai/deepseek-v4-flash',
+    );
+    expect(amanaiModel.amanaiCredits).toBe(15000);
+    const claudeModel = res.body.byModel.find(
+      (m: { key: string | null }) => m.key === 'claude-sonnet-5',
+    );
+    expect(claudeModel.amanaiCredits).toBe(0);
   });
 
   it('breaks down by project and by user', async () => {

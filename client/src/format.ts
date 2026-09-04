@@ -5,6 +5,9 @@ import type { PricingSnapshot, TokenCounts } from './types';
 const numberFormat = new Intl.NumberFormat('en-US');
 const PER_MILLION = 1_000_000;
 
+/** Mirrors AMANAI_IDR_PER_CREDIT in server/src/services/amanaiCredits.ts. */
+export const AMANAI_IDR_PER_CREDIT = 150_000 / 1_000_000_000;
+
 export const formatTokens = (value: number): string => numberFormat.format(value);
 
 /**
